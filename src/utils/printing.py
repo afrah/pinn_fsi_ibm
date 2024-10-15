@@ -11,7 +11,7 @@ def print_losses(model, epoch, elapsed):
 
     additional_message = (
         f" Epoch: {epoch} | Time: {elapsed:.2f}s | rTime: {model.running_time:.3e}h | "
-        f"LR: {model.optimizer.param_groups[0]['lr']:.3e} |loss: {tloss:.3e} | "
+        f"LR: {model.optimizer_fluid.param_groups[0]['lr']:.3e} |loss: {tloss:.3e} | "
     )
 
     if model.max_eig_hessian_bc_log:

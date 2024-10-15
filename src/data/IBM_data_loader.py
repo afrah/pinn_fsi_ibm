@@ -9,14 +9,14 @@ import h5py
 dist = "Sobol"
 
 
-fluidP = 0.005
-solid_interfaceP = 0.05
-solidP = 0.04
-leftP = 0.1
-rightP = 0.1
-bottomP = 0.1
-upP = 0.1
-initialP = 0.05
+fluidP = 0.006
+solid_interfaceP = 0.07
+solidP = 0.07
+leftP = 0.15
+rightP = 0.15
+bottomP = 0.15
+upP = 0.15
+initialP = 0.07
 
 
 # fluidP = 0.01
@@ -87,16 +87,16 @@ class FluidData:
         self.txy_initial = torch.tensor(initial[:, 0:3], dtype=torch.float32).to(device)
         self.uvp_initial = torch.tensor(initial[:, 3:8], dtype=torch.float32).to(device)
 
-        # Calculate min and max for fluid domain
-        self.min_x = torch.tensor(
-            np.min(fluid[:, 0:3], axis=0), dtype=torch.float32
+        # Calculate mean and std for fluid domain
+        self.mean_x = torch.tensor(
+            np.mean(fluid[:, 0:3], axis=0), dtype=torch.float32
         ).to(device)
-        self.max_x = torch.tensor(
-            np.max(fluid[:, 0:3], axis=0), dtype=torch.float32
+        self.std_x = torch.tensor(
+            np.std(fluid[:, 0:3], axis=0), dtype=torch.float32
         ).to(device)
 
         # Debugging purpose
-        print(f"FluidData: {self.txy_fluid.shape=}, {self.min_x=}, {self.max_x=}")
+        print(f"FluidData: {self.txy_fluid.shape=},  {self.mean_x=}, {self.std_x=}")
 
 
 class SolidData:
@@ -109,17 +109,17 @@ class SolidData:
             solid_points[:, 3:8], dtype=torch.float32
         ).to(device)
 
-        # Calculate min and max for solid domain
-        self.min_x = torch.tensor(
-            np.min(solid_points[:, 0:3], axis=0), dtype=torch.float32
+        # Calculate mean and std for solid domain
+        self.mean_x = torch.tensor(
+            np.mean(solid_points[:, 0:3], axis=0), dtype=torch.float32
         ).to(device)
-        self.max_x = torch.tensor(
-            np.max(solid_points[:, 0:3], axis=0), dtype=torch.float32
+        self.std_x = torch.tensor(
+            np.std(solid_points[:, 0:3], axis=0), dtype=torch.float32
         ).to(device)
 
         # Debugging purpose
         print(
-            f"SolidData: {self.txy_solid_points.shape=},  {self.min_x=}, {self.max_x=}"
+            f"SolidData: {self.txy_solid_points.shape=},  {self.mean_x=}, {self.std_x=}"
         )
 
 
@@ -140,17 +140,17 @@ class FluidSolidInterfaceData:
             initial_interface[:, 3:8], dtype=torch.float32
         ).to(device)
 
-        # Calculate min and max for interface domain
-        self.min_x = torch.tensor(
-            np.min(interface[:, 0:3], axis=0), dtype=torch.float32
+        # Calculate mean and std for interface domain
+        self.mean_x = torch.tensor(
+            np.mean(interface[:, 0:3], axis=0), dtype=torch.float32
         ).to(device)
-        self.max_x = torch.tensor(
-            np.max(interface[:, 0:3], axis=0), dtype=torch.float32
+        self.std_x = torch.tensor(
+            np.std(interface[:, 0:3], axis=0), dtype=torch.float32
         ).to(device)
 
         # Debugging purpose
         print(
-            f"FluidSolidInterfaceData: {self.txy_interface.shape=}, {self.min_x=}, {self.max_x=}"
+            f"FluidSolidInterfaceData: {self.txy_interface.shape=},  {self.mean_x=}, {self.std_x=}"
         )
 
 
@@ -235,9 +235,9 @@ def process_file(path, dist):
     Fluid_data = scipy.io.loadmat(path)
 
     # Load data
-    fluid = load_data(Fluid_data, "fluid")
-    interface = load_data(Fluid_data, "interface")
-    solid = load_data(Fluid_data, "solid")
+    fluid = load_data(Fluid_data, "Fluid_training")
+    interface = load_data(Fluid_data, "Solid_interface")
+    solid = load_data(Fluid_data, "Solid_points")
 
     # fluid = fluid[(fluid[:, -1] == 0) & (fluid[:, -2] == 0)]
 
@@ -248,7 +248,7 @@ def process_file(path, dist):
     solid, solid_initial1 = remove_initial(solid)
     # interface, initial_interface = remove_initial(interface)
     initial_interface = interface
-    initial = np.concatenate([fluid_initial1, solid_initial1], 0)
+    initial = np.concatenate([fluid_initial1, solid_initial1, initial_interface], 0)
 
     # Extract boundary data
     left = fluid[np.where(fluid[:, 1] == fluid[:, 1].min())[0], :]
@@ -256,9 +256,21 @@ def process_file(path, dist):
     bottom = fluid[np.where(fluid[:, 2] == fluid[:, 2].min())[0], :]
     up = fluid[np.where(fluid[:, 2] == fluid[:, 2].max())[0], :]
 
+    # print("insize process file")
+    # print(f"fluid shape: {fluid.shape}")
+    # print(f"fluid_points shape: {fluid_points.shape}")
+    # print(f"interface shape: {interface.shape}")
+    # print(f"solid shape: {solid.shape}")
+    # print(f"left shape: {left.shape}")
+    # print(f"right shape: {right.shape}")
+    # print(f"bottom shape: {bottom.shape}")
+    # print(f"up shape: {up.shape}")
+    # print(f"initial shape: {initial.shape}")
+    # print(f"initial_interface shape: {initial_interface.shape}")
+
     # Subsample data
     fluid = subsample(fluid, fluidP, dist, SEED)
-    fluid_points = subsample(fluid, fluidP, dist, SEED)
+    fluid_points = subsample(fluid_points, fluidP, dist, SEED)
     interface = subsample(interface, solid_interfaceP, dist, SEED)
     solid = subsample(solid, solidP, dist, SEED)
     left = subsample(left, leftP, dist, SEED)
@@ -267,7 +279,18 @@ def process_file(path, dist):
     up = subsample(up, upP, dist, SEED)
     initial = subsample(initial, initialP, dist, SEED)
 
-    left = np.concatenate([left, bottom, right], 0)
+    # print("insize process file")
+    # print(f"fluid shape: {fluid.shape}")
+    # print(f"fluid_points shape: {fluid_points.shape}")
+    # print(f"interface shape: {interface.shape}")
+    # print(f"solid shape: {solid.shape}")
+    # print(f"left shape: {left.shape}")
+    # print(f"right shape: {right.shape}")
+    # print(f"bottom shape: {bottom.shape}")
+    # print(f"up shape: {up.shape}")
+    # print(f"initial shape: {initial.shape}")
+
+    # left = np.concatenate([left, bottom, right], 0)
 
     # Sort data by time
     fluid = fluid[np.argsort(fluid[:, 0])]

@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import random
 
 # from torch.utils.tensorboard import SummaryWriter
 
@@ -32,6 +33,7 @@ class BaseTrainer:
         self.max_eig_hessian_bc_log = []
         self.max_eig_hessian_ic_log = []
         self.max_eig_hessian_res_log = []
+        self.batch_size = config.get("batch_size")
 
         self.epoch_loss = {
             loss: torch.tensor(0.0, requires_grad=True).to(self.rank)
@@ -43,33 +45,19 @@ class BaseTrainer:
 
         # SA weights initialization
 
-        if self.config("RBA"):
-            self.weights = {
-                key: torch.ones(
-                    getattr(self.train_dataloader.fluid_data, f"txy_{key}").shape[0],
-                    1,
-                    requires_grad=False,
-                ).float()
-                for key in [
-                    "fluid",
-                    "left",
-                    "right",
-                    "bottom",
-                    "up",
-                    "initial",
-                    "fluid_points",
-                ]
-            }
-
-        if self.config("SA"):
+        if self.config.get("weighting") == "SA":
             self.weights = {
                 key: nn.Parameter(
-                    torch.randn(
-                        getattr(self.train_dataloader.fluid_data, f"txy_{key}").shape[
-                            0
-                        ],
-                        1,
-                    ).float(),
+                    torch.rand(
+                        (
+                            getattr(
+                                self.train_dataloader.fluid_data, f"txy_{key}"
+                            ).shape[0],
+                            1,
+                        ),
+                        dtype=torch.float32,
+                        device=self.rank,
+                    ),
                     requires_grad=True,
                 )
                 for key in [
@@ -83,17 +71,17 @@ class BaseTrainer:
                 ]
             }
 
+            self.sa_optimizer = torch.optim.Adam(
+                [param for param in self.weights.values() if param.requires_grad],
+                lr=0.005,
+                maximize=True,
+            )
         # Uncomment the following line to use Tensorboard
         # self._initialize_tensorboard()
 
-    def adapt_weight_RBA(self, losses):
-        eta = 0.001
-        gamma = 0.999
-        for key, value in losses.items():
-            if self.weights.get(key) is not None:
-                r_norm = eta * torch.abs(value) / torch.max(value)
-                new_weights = (self.weights.get(key) * gamma + r_norm).detach()
-                self.weights[key] = new_weights
+    def get_random_minibatch(self, dataset_length):
+        batch_indices = random.sample(range(dataset_length), self.batch_size)
+        return batch_indices
 
     def _initialize_logging(self):
         self.logger = Logging(self.config.get("log_path"))
@@ -105,6 +93,7 @@ class BaseTrainer:
         with torch.no_grad():
             for loss_type in self.config["loss_list"]:
                 self.epoch_loss[loss_type] = losses.get(loss_type)
+
             if self.rank == 0:
                 self.update_loss_history()
 
@@ -191,6 +180,8 @@ class BaseTrainer:
             "max_eig_hessian_ic_log": self.max_eig_hessian_ic_log,
             "max_eig_hessian_res_log": self.max_eig_hessian_res_log,
             "epoch": epoch,
+            "data_mean": self.train_dataloader.fluid_data.mean_x,
+            "data_std": self.train_dataloader.fluid_data.std_x,
             "config": self.config,
             "model_path": model_path,
         }

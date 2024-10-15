@@ -4,7 +4,7 @@ import sys
 
 import torch
 
-DATASET_PATH = "../data/Fluid_trainingData.mat"
+DATASET_PATH = "/home/ubuntu/afrah/code/pinn_fsi_ibm/data/Fluid_trainingData.mat"
 
 
 def ddp_setup():
@@ -22,19 +22,19 @@ def init_model_and_data(config, local_rank):
 
     def load_model_class(solver_name):
         solver_to_module = {
-            "bspline": "src.nn.bspline",
+            "xsig": "src.nn.xsigmoid",
             "tanh": "src.nn.tanh",
         }
         module = __import__(solver_to_module[solver_name], fromlist=["PINNKAN"])
         return getattr(module, "PINNKAN")
 
-    if config.get("problem") == "IBM":
+    if config.get("problem") == "fsi":
         from src.data.IBM_data_loader import IBM_data_loader
 
         train_dataloader = IBM_data_loader(DATASET_PATH, local_rank)
     else:
         print(
-            "Error: Problem type is not set. Please provide a valid problem type (e.g., IBM)."
+            "Error: Problem type is not set. Please provide a valid problem type (e.g., fsi)."
         )
         sys.exit(1)
     solver_name = config.get("solver")
@@ -42,8 +42,8 @@ def init_model_and_data(config, local_rank):
     model_class = load_model_class(solver_name)
     model = model_class(config.get("network"), config.get("activation"))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-6)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-8)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.75)
     return train_dataloader, model, optimizer, scheduler
 
 
@@ -59,18 +59,57 @@ def main(config):
         config, local_rank
     )
 
-    if config.get("problem") == "IBM":
-        from src.trainer import ibm_trainer_m1
+    if config.get("problem") == "fsi":
+        if config.get("weighting") == "Fixed":
+            from src.trainer import ibm_trainer_Fixed
 
-        trainer = ibm_trainer_m1.Trainer(
-            train_dataloader,
-            model,
-            optimizer,
-            scheduler,
-            local_rank,
-            config,
-        )
+            trainer = ibm_trainer_Fixed.Trainer(
+                train_dataloader,
+                model,
+                optimizer,
+                scheduler,
+                local_rank,
+                config,
+            )
+        elif config.get("weighting") == "RBA":
+            from src.trainer import ibm_trainer_RBA
 
+            trainer = ibm_trainer_RBA.Trainer(
+                train_dataloader,
+                model,
+                optimizer,
+                scheduler,
+                local_rank,
+                config,
+            )
+        elif config.get("weighting") == "SA":
+            from src.trainer import ibm_trainer_SA
+
+            trainer = ibm_trainer_SA.Trainer(
+                train_dataloader,
+                model,
+                optimizer,
+                scheduler,
+                local_rank,
+                config,
+            )
+
+        elif config.get("weighting") == "grad_stat":
+            from src.trainer import ibm_trainer_grad_stat
+
+            trainer = ibm_trainer_grad_stat.Trainer(
+                train_dataloader,
+                model,
+                optimizer,
+                scheduler,
+                local_rank,
+                config,
+            )
+        else:
+            print(
+                "Error: Weighting type is not set. Please provide a valid weighting type (e.g., RBA or SA)."
+            )
+            sys.exit(1)
     if local_rank == 0:
         print(f"DATA_FILE: {config.get('dataset_path')=}")
     trainer.train_mini_batch()
@@ -100,21 +139,42 @@ if __name__ == "__main__":
     parser.add_argument(
         "--solver",
         choices=[
-            "param_tanh",
             "tanh",
-            "bspline",
+            "xsig",
         ],
         required=True,
         help="solver",
     )
 
     parser.add_argument(
-        "--problem",
+        "--activation",
         choices=[
-            "IBM",
+            "tanh",
+            "xsig",
         ],
         required=True,
-        help="solver",
+        help="activation",
+    )
+
+    parser.add_argument(
+        "--weighting",
+        choices=[
+            "RBA",
+            "SA",
+            "Fixed",
+            "grad_stat",
+        ],
+        required=True,
+        help="weighting",
+    )
+
+    parser.add_argument(
+        "--problem",
+        choices=[
+            "fsi",
+        ],
+        required=True,
+        help="problem",
     )
 
     def parse_list(weights_str, data_type):
@@ -139,33 +199,30 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.problem == "IBM":
+    if args.problem == "fsi":
         loss_list = [
-            "lleft",
-            "lright",
-            "lbottom",
-            "lup",
-            "linitial",
-            "lphy",
+            "left",
+            "right",
+            "bottom",
+            "up",
+            "fluid_points",
+            "initial",
+            "fluid",
         ]
 
-    # TODO
     configuration = {
         "batch_size": args.batch_size,
         "network": args.network,
-        "weights": args.weights,
+        "activation": args.activation,
         "solver": args.solver,
+        "weighting": args.weighting,
         "problem": args.problem,
-        "dataset_path": args.dataset_path,
         "total_epochs": args.total_epochs,
         "print_every": args.print_every,
         "save_every": args.save_every,
         "loss_list": loss_list,
         "log_path": args.log_path,
     }
-    assert len(configuration.get("weights")) == len(
-        configuration.get("loss_list")
-    ), "Length of 'weights' and 'loss_list' must be equal."
 
     main(configuration)
 

@@ -1,1 +1,66 @@
-# pinn_fsi_ibm
+# About
+
+This project is about ...
+
+Project structure
+
+```bash
+├── checkpoint     /* Logs and checkpoints, not commited to git */ 
+├── data           /* PDE data */
+├── model          /* Final trained models - copied from checkpoints */ 
+├── result         /* Final training logs/figures */     
+└── src
+   ├── data        /* PyTorch data loaders */     
+   ├── nn          /* PINN code, e.g., fsi, Wave, etc.*/     
+   ├── notebooks   /* Test models, generate plots, various other notebooks */
+   ├── trainer     /* PyTorch trainer code, that runs the nn code */
+   └── utils       /* Additional utility code */
+```
+
+## Setup environment
+
+The code is tested in Ubuntu 20.04 LTS, using Nvidia A100 GPU.
+
+```bash
+conda env create -f environment.yml
+conda activate pinn_fsi_ibm
+
+# Check if PyTorch and CUDA available
+python -m src.utils.check_torch
+    Version 2.4.0
+    CUDA: True
+    CUDA Version: 12.4
+    NCCL Version: (2, 20, 5)
+```
+
+## Training
+
+To train models run the following commands.
+
+```bash
+# fsi
+python -m main.XXX.py --data data/XXX.mat
+
+# Wave
+
+XXX
+```
+
+## Notebooks for Plots
+
+We provided all pre-trained models and training loss log history. The notebooks can be run independently of training models.
+
+Test models
+
+- fsi: `fsi_test_model.ipynb`
+- XXX
+
+Plot loss history and test results
+
+- fsi training loss history: `fsi_plot_training_loss_history.ipynb`
+- fsi contour plot of test and error: `fsi_plot_contour.ipynb`
+- XXX
+
+Plot spectral analysis
+
+- XXX

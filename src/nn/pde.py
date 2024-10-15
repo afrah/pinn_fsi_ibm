@@ -1,7 +1,7 @@
 import torch
 
 
-def navier_stokes_2D_IBM(txy, fluid_model, fluid_min=0.0, fluid_max=1.0):
+def navier_stokes_2D_IBM(txy, fluid_model, data_mean, data_std):
     """_summary_
 
     Args:
@@ -20,9 +20,7 @@ def navier_stokes_2D_IBM(txy, fluid_model, fluid_min=0.0, fluid_max=1.0):
     x = txy[:, 1]
     y = txy[:, 2]
 
-    uvp_pred = fluid_model.forward(
-        torch.stack([ttime, x, y], dim=1), fluid_min, fluid_max
-    )
+    uvp_pred = fluid_model(torch.stack([ttime, x, y], dim=1), data_mean, data_std)
 
     DENSITY = 1.0
     mu = 0.01  # kinematic viscosity

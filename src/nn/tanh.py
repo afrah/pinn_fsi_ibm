@@ -28,6 +28,9 @@ class PINNKAN(nn.Module):
         return layer
 
     def forward(self, input, min_x=0.0, max_x=1.0):
+        # Normalize the inputs to be between -1 and 1
+        input = 2 * (input - min_x) / (max_x - min_x) - 1
+
         for index in range(len(self.layers[:-1])):
             input = self.layers[index](input)
             input = torch.tanh(input)
