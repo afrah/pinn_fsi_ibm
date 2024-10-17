@@ -40,11 +40,30 @@ def init_model_and_data(config, local_rank):
     solver_name = config.get("solver")
 
     model_class = load_model_class(solver_name)
-    model = model_class(config.get("network"), config.get("activation"))
+    model_fluid = model_class(config.get("network_fluid"), config.get("activation"))
+    model_force = model_class(config.get("network_force"), config.get("activation"))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-8)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.75)
-    return train_dataloader, model, optimizer, scheduler
+    optimizer_fluid = torch.optim.Adam(
+        model_fluid.parameters(), lr=0.005, weight_decay=1e-8
+    )
+    optimizer_force = torch.optim.Adam(
+        model_force.parameters(), lr=0.005, weight_decay=1e-8
+    )
+    scheduler_fluid = torch.optim.lr_scheduler.StepLR(
+        optimizer_fluid, step_size=2000, gamma=0.75
+    )
+    scheduler_force = torch.optim.lr_scheduler.StepLR(
+        optimizer_force, step_size=2000, gamma=0.75
+    )
+    return (
+        train_dataloader,
+        model_fluid,
+        model_force,
+        optimizer_fluid,
+        optimizer_force,
+        scheduler_fluid,
+        scheduler_force,
+    )
 
 
 def main(config):
@@ -55,53 +74,71 @@ def main(config):
     """
 
     local_rank, world_size = ddp_setup()
-    train_dataloader, model, optimizer, scheduler = init_model_and_data(
-        config, local_rank
-    )
+    (
+        train_dataloader,
+        model_fluid,
+        model_force,
+        optimizer_fluid,
+        optimizer_force,
+        scheduler_fluid,
+        scheduler_force,
+    ) = init_model_and_data(config, local_rank)
 
     if config.get("problem") == "fsi":
         if config.get("weighting") == "Fixed":
-            from src.trainer import ibm_trainer_Fixed
+            from src.trainer_M2 import ibm_trainer_Fixed
 
             trainer = ibm_trainer_Fixed.Trainer(
                 train_dataloader,
-                model,
-                optimizer,
-                scheduler,
+                model_fluid,
+                model_force,
+                optimizer_fluid,
+                optimizer_force,
+                scheduler_fluid,
+                scheduler_force,
                 local_rank,
                 config,
             )
         elif config.get("weighting") == "RBA":
-            from src.trainer import ibm_trainer_RBA
+            from src.trainer_M2 import ibm_trainer_RBA
 
             trainer = ibm_trainer_RBA.Trainer(
                 train_dataloader,
-                model,
-                optimizer,
-                scheduler,
+                model_fluid,
+                model_force,
+                optimizer_fluid,
+                optimizer_force,
+                scheduler_fluid,
+                scheduler_force,
                 local_rank,
                 config,
             )
         elif config.get("weighting") == "SA":
-            from src.trainer import ibm_trainer_SA
+            from src.trainer_M2 import ibm_trainer_SA
 
             trainer = ibm_trainer_SA.Trainer(
                 train_dataloader,
-                model,
-                optimizer,
-                scheduler,
+                model_fluid,
+                model_force,
+                optimizer_fluid,
+                optimizer_force,
+                scheduler_fluid,
+                scheduler_force,
                 local_rank,
                 config,
             )
 
         elif config.get("weighting") == "grad_stat":
-            from src.trainer import ibm_trainer_grad_stat
+            from src.trainer_M2 import ibm_trainer_grad_stat
 
             trainer = ibm_trainer_grad_stat.Trainer(
                 train_dataloader,
-                model,
-                optimizer,
-                scheduler,
+                model_fluid,
+                model_force,
+                optimizer_fluid,
+                optimizer_force,
+                scheduler_fluid,
+                scheduler_force,
                 local_rank,
                 config,
             )
@@ -188,7 +225,13 @@ if __name__ == "__main__":
         return parsed_list
 
     parser.add_argument(
-        "--network",
+        "--network_force",
+        required=True,
+        type=partial(parse_list, data_type=int),  # Predefine data_type=int
+        help="list of [input, nxhidden , output] weights (e.g., [2, 10, 10, 1])",
+    )
+    parser.add_argument(
+        "--network_fluid",
         required=True,
         type=partial(parse_list, data_type=int),  # Predefine data_type=int
         help="list of [input, nxhidden , output] weights (e.g., [2, 10, 10, 1])",
@@ -212,7 +255,8 @@ if __name__ == "__main__":
 
     configuration = {
         "batch_size": args.batch_size,
-        "network": args.network,
+        "network_fluid": args.network_fluid,
+        "network_force": args.network_force,
         "activation": args.activation,
         "solver": args.solver,
         "weighting": args.weighting,

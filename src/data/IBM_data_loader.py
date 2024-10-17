@@ -9,24 +9,24 @@ import h5py
 dist = "Sobol"
 
 
-fluidP = 0.006
-solid_interfaceP = 0.07
-solidP = 0.07
-leftP = 0.15
-rightP = 0.15
-bottomP = 0.15
-upP = 0.15
-initialP = 0.07
+# fluidP = 0.006
+# solid_interfaceP = 0.07
+# solidP = 0.07
+# leftP = 0.15
+# rightP = 0.15
+# bottomP = 0.15
+# upP = 0.15
+# initialP = 0.07
 
 
-# fluidP = 0.01
-# solid_interfaceP = 0.1
-# solidP = 0.1
-# leftP = 0.2
-# rightP = 0.2
-# bottomP = 0.2
-# upP = 0.2
-# pInitial = 0.2
+fluidP = 0.01
+solid_interfaceP = 0.1
+solidP = 0.1
+leftP = 0.2
+rightP = 0.2
+bottomP = 0.2
+upP = 0.2
+initialP = 0.2
 
 
 def generate_sobol_sequence(low, high, n):
@@ -88,12 +88,10 @@ class FluidData:
         self.uvp_initial = torch.tensor(initial[:, 3:8], dtype=torch.float32).to(device)
 
         # Calculate mean and std for fluid domain
-        self.mean_x = torch.tensor(
-            np.mean(fluid[:, 0:3], axis=0), dtype=torch.float32
-        ).to(device)
-        self.std_x = torch.tensor(
-            np.std(fluid[:, 0:3], axis=0), dtype=torch.float32
-        ).to(device)
+        self.mean_x = torch.tensor(np.mean(fluid, axis=0), dtype=torch.float32).to(
+            device
+        )
+        self.std_x = torch.tensor(np.std(fluid, axis=0), dtype=torch.float32).to(device)
 
         # Debugging purpose
         print(f"FluidData: {self.txy_fluid.shape=},  {self.mean_x=}, {self.std_x=}")
@@ -111,11 +109,11 @@ class SolidData:
 
         # Calculate mean and std for solid domain
         self.mean_x = torch.tensor(
-            np.mean(solid_points[:, 0:3], axis=0), dtype=torch.float32
+            np.mean(solid_points, axis=0), dtype=torch.float32
         ).to(device)
-        self.std_x = torch.tensor(
-            np.std(solid_points[:, 0:3], axis=0), dtype=torch.float32
-        ).to(device)
+        self.std_x = torch.tensor(np.std(solid_points, axis=0), dtype=torch.float32).to(
+            device
+        )
 
         # Debugging purpose
         print(
@@ -141,12 +139,12 @@ class FluidSolidInterfaceData:
         ).to(device)
 
         # Calculate mean and std for interface domain
-        self.mean_x = torch.tensor(
-            np.mean(interface[:, 0:3], axis=0), dtype=torch.float32
-        ).to(device)
-        self.std_x = torch.tensor(
-            np.std(interface[:, 0:3], axis=0), dtype=torch.float32
-        ).to(device)
+        self.mean_x = torch.tensor(np.mean(interface, axis=0), dtype=torch.float32).to(
+            device
+        )
+        self.std_x = torch.tensor(np.std(interface, axis=0), dtype=torch.float32).to(
+            device
+        )
 
         # Debugging purpose
         print(
@@ -332,9 +330,9 @@ def generate_fluid_testing_dataset(file_path):
     fxfa = Fluid[:, 6].flatten()[:, None]  # test_data[5]
     fyfa = Fluid[:, 7].flatten()[:, None]  # test_data[5]
 
-    with open("IBM_Fluid_Testing.pickle", "wb") as file:
-        pickle.dump([tfa, xfa, yfa, ufa, vfa, pfa, fxfa, fyfa], file)
-    data.close()
+    # with open("IBM_Fluid_Testing.pickle", "wb") as file:
+    #     pickle.dump([tfa, xfa, yfa, ufa, vfa, pfa, fxfa, fyfa], file)
+    # data.close()
 
     return [tfa, xfa, yfa, ufa, vfa, pfa, fxfa, fyfa]
 

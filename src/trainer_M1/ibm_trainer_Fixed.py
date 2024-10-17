@@ -1,4 +1,5 @@
 import os
+import random
 import time
 import torch
 import torch.nn as nn
@@ -15,7 +16,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.nn.pde import navier_stokes_2D_IBM
-from src.trainer.base_trainer import BaseTrainer
+from src.trainer_M1.base_trainer import BaseTrainer
 from src.nn.nn_functions import MSE
 from src.utils.max_eigenvlaue_of_hessian import power_iteration
 
@@ -27,7 +28,7 @@ class Trainer(BaseTrainer):
         self,
         train_dataloader,
         fluid_model: nn.Module,
-        fluid_optimizer: optim.Optimizer,
+        optimizer_fluid: optim.Optimizer,
         fluid_scheduler,
         rank: int,
         config,
@@ -35,106 +36,53 @@ class Trainer(BaseTrainer):
         super(Trainer, self).__init__(
             train_dataloader,
             fluid_model,
-            fluid_optimizer,
+            optimizer_fluid,
             fluid_scheduler,
             rank,
             config,
         )
-        if self.config.get("weighting") == "RBA":
-            self.ETA = 0.001
-            self.weights = {
-                key: torch.zeros(1).to(self.rank) for key in self.epoch_loss.keys()
-            }
-            self.GAMMA = 0.999
-            self.weights = {
-                key: torch.ones(
-                    getattr(self.train_dataloader.fluid_data, f"txy_{key}").shape[0],
-                    1,
-                    requires_grad=True,
-                )
-                .float()
-                .to(self.rank)
-                for key in [
-                    "fluid",
-                    "left",
-                    "right",
-                    "bottom",
-                    "up",
-                    "initial",
-                    "fluid_points",
-                ]
-            }
-
-    # def adapt_weight_RBA(self):
-    #     for key, value in self.epoch_loss.items():
-    #         if self.weights.get(key) is not None:
-    #             r_norm = self.ETA * torch.abs(value) / torch.max(value)
-    #             new_weights = (self.weights.get(key) * self.GAMMA + r_norm).detach()
-    #             self.weights[key] = new_weights
 
     def _run_epoch(self, epoch):
         # self.train_dataloader.sampler.set_epoch(epoch)
-
         if self.rank == 0:
-            start_time = time.time()
-
+            t1 = time.time()
         # print("inside _run_epoch" , epoch)
 
         bclosses = self._compute_losses()
-        if self.config.get("weighting") == "RBA":
-            for key in self.epoch_loss.keys():
-                if self.weights.get(key) is not None:
-                    r_norm = (
-                        self.ETA
-                        * torch.abs(torch.sqrt(bclosses[key]))
-                        / torch.max(torch.abs(torch.sqrt(bclosses[key])))
-                    )
-                    self.weights[key] = (
-                        self.weights[key] * self.GAMMA + r_norm
-                    ).detach()
-                    if epoch % 1000 == 0:
-                        print(f"{key} : {torch.mean((self.weights[key])).item(): .2f}")
 
-            total_loss = sum(
-                torch.mean(self.weights[key] * bclosses[key])
-                for key in self.weights.keys()
-            )
+        total_loss = sum(
+            [
+                2.0 * ((bclosses["left"])),
+                2.0 * ((bclosses["right"])),
+                2.0 * ((bclosses["bottom"])),
+                2.0 * ((bclosses["up"])),
+                4.0 * ((bclosses["fluid_points"])),
+                2.0 * ((bclosses["initial"])),
+                0.01 * ((bclosses["fluid"])),
+            ]
+        )
 
-        else:
-            print("Weighting is not implemented")
+        self.optimizer_fluid.zero_grad()
+
         if self.rank == 0:
-            elapsed_time = time.time() - start_time
-
-        self.fluid_optimizer.zero_grad()
-
-        ##### ____ Update Weights ____#####
-
-        #### update schedular and optimizer
-
-        ### printing
-        bclosses["left"] = torch.mean(bclosses["left"])
-        bclosses["right"] = torch.mean(bclosses["right"])
-        bclosses["bottom"] = torch.mean(bclosses["bottom"])
-        bclosses["up"] = torch.mean(bclosses["up"])
-        bclosses["fluid_points"] = torch.mean(bclosses["fluid_points"])
-        bclosses["initial"] = torch.mean(bclosses["initial"])
-        bclosses["fluid"] = torch.mean(bclosses["fluid"])
+            elapsed_time1 = time.time() - t1
 
         self.update_epoch_loss(bclosses)
 
+        ### printing
         if self.rank == 0 and epoch % self.config.get("print_every") == 0:
 
             loss_bc = sum(
                 [
-                    torch.mean((bclosses["left"])),
-                    torch.mean((bclosses["right"])),
-                    torch.mean((bclosses["bottom"])),
-                    torch.mean((bclosses["up"])),
-                    torch.mean((bclosses["fluid_points"])),
+                    ((bclosses["left"])),
+                    ((bclosses["right"])),
+                    ((bclosses["bottom"])),
+                    ((bclosses["up"])),
+                    ((bclosses["fluid_points"])),
                 ]
             )
-            loss_initial = torch.mean((bclosses["initial"]))
-            loss_res = torch.mean((bclosses["fluid"]))
+            loss_initial = bclosses["initial"]
+            loss_res = bclosses["fluid"]
 
             self.max_eig_hessian_bc_log.append(
                 power_iteration(self.fluid_model, loss_bc)
@@ -145,18 +93,27 @@ class Trainer(BaseTrainer):
             self.max_eig_hessian_ic_log.append(
                 power_iteration(self.fluid_model, loss_initial)
             )
+
+        if self.rank == 0:
+            t2 = time.time()
+
+        total_loss.backward()
+        self.optimizer_fluid.step()
+        self.fluid_scheduler.step()
+
+        if self.rank == 0:
+            elapsed_time2 = time.time() - t2
+            elapsed_time = elapsed_time1 + elapsed_time2
+
+        if self.rank == 0 and epoch % self.config.get("print_every") == 0:
             self.track_training(
                 int(epoch / self.config.get("print_every")),
                 elapsed_time,
             )
-        total_loss.backward()
-        self.fluid_optimizer.step()
-        self.fluid_scheduler.step()
 
     def _compute_losses(self):
-
-        data_mean = self.train_dataloader.fluid_data.mean_x
-        data_std = self.train_dataloader.fluid_data.std_x
+        data_mean = self.train_dataloader.fluid_data.mean_x[:3]
+        data_std = self.train_dataloader.fluid_data.std_x[:3]
 
         txy_domain = self.train_dataloader.fluid_data.txy_fluid
         uvp_domain = self.train_dataloader.fluid_data.uvp_fluid
@@ -175,6 +132,7 @@ class Trainer(BaseTrainer):
         uvp_up = self.train_dataloader.fluid_data.uvp_up
         uvp_initial = self.train_dataloader.fluid_data.uvp_initial
 
+        # Access the randomly selected minibatch for each tensor
         batch_indices = self.get_random_minibatch(txy_domain.shape[0])
         txy_domain = txy_domain[batch_indices, :]
 
@@ -207,32 +165,36 @@ class Trainer(BaseTrainer):
             txy_domain, self.fluid_model, data_mean, data_std
         )
 
-        lphy = torch.square(continuity) + torch.square(f_u) + torch.square(f_v)
+        lphy = torch.mean(
+            torch.square(continuity) + torch.square(f_u) + torch.square(f_v)
+        )
 
         pred_left = self.fluid_model(txy_left, data_mean, data_std)
-        lleft = torch.square(pred_left[:, 0] - uvp_left[:, 0]) + torch.square(
-            pred_left[:, 1] - uvp_left[:, 1]
+        lleft = torch.mean(
+            torch.square(pred_left[:, 0] - uvp_left[:, 0])
+            + torch.square(pred_left[:, 1] - uvp_left[:, 1])
         )
 
         pred_right = self.fluid_model(txy_right, data_mean, data_std)
-        lright = torch.square(pred_right[:, 0] - uvp_right[:, 0]) + torch.square(
-            pred_right[:, 1] - uvp_right[:, 1]
+        lright = torch.mean(
+            torch.square(pred_right[:, 0] - uvp_right[:, 0])
+            + torch.square(pred_right[:, 1] - uvp_right[:, 1])
         )
 
         pred_bottom = self.fluid_model(txy_bottom, data_mean, data_std)
-        lbottom = torch.square(
-            (pred_bottom[:, 0] - uvp_bottom[:, 0])
-        ) + torch.square(  ## zero
-            ((pred_bottom[:, 1] - uvp_bottom[:, 1]))
-        )  ## zero
+        lbottom = torch.mean(
+            torch.square((pred_bottom[:, 0] - uvp_bottom[:, 0]))
+            + torch.square(((pred_bottom[:, 1] - uvp_bottom[:, 1])))  ## zero  ## zero
+        )
 
         pred_up = self.fluid_model(txy_up, data_mean, data_std)
-        lup = torch.square(((pred_up[:, 0] - uvp_up[:, 0]))) + torch.square(  ## one
-            ((pred_up[:, 1] - uvp_up[:, 1]))
+        lup = torch.mean(
+            torch.square(((pred_up[:, 0] - uvp_up[:, 0])))
+            + torch.square(((pred_up[:, 1] - uvp_up[:, 1])))  ## one
         )  ## zero
 
         pred_initial = self.fluid_model(txy_initial, data_mean, data_std)
-        linitial = (
+        linitial = torch.mean(
             torch.square(pred_initial[:, 0] - uvp_initial[:, 0])
             + torch.square(pred_initial[:, 1] - uvp_initial[:, 1])
             + torch.square(pred_initial[:, 2] - uvp_initial[:, 2])
@@ -242,12 +204,12 @@ class Trainer(BaseTrainer):
         ## presssure training is necessary
 
         pred_sensors = self.fluid_model(txy_sensors, data_mean, data_std)
-        lsensors = (
+        lsensors = torch.mean(
             torch.square(pred_sensors[:, 0] - uvp_sensors[:, 0])
             + torch.square(pred_sensors[:, 1] - uvp_sensors[:, 1])
             + torch.square(pred_sensors[:, 2] - uvp_sensors[:, 2])
-            # + torch.square(pred_sensors[:, 3] - uvp_sensors[:, 3])
-            # + torch.square(pred_sensors[:, 4] - uvp_sensors[:, 4])
+            + torch.square(pred_sensors[:, 3] - uvp_sensors[:, 3])
+            + torch.square(pred_sensors[:, 4] - uvp_sensors[:, 4])
         )
         # p ## nonzero
         # +  (pred_sensors[:, 3], uvp_sensors[:, 3])## nonzero

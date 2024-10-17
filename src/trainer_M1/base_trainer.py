@@ -8,7 +8,6 @@ import random
 
 
 from src.utils.logger import Logging
-from src.utils import printing
 from src.data.IBM_data_loader import IBM_data_loader
 
 
@@ -17,7 +16,7 @@ class BaseTrainer:
         self,
         train_dataloader: IBM_data_loader,
         fluid_model: nn.Module,
-        fluid_optimizer: optim.Optimizer,
+        optimizer_fluid: optim.Optimizer,
         fluid_scheduler,
         rank: int,
         config,
@@ -25,7 +24,7 @@ class BaseTrainer:
         self.rank = rank
         self.fluid_model = fluid_model.to(self.rank)
         self.train_dataloader = train_dataloader
-        self.fluid_optimizer = fluid_optimizer
+        self.optimizer_fluid = optimizer_fluid
         self.fluid_scheduler = fluid_scheduler
         self.config = config
         self.running_time = 0.0
@@ -42,42 +41,6 @@ class BaseTrainer:
 
         if self.rank == 0:
             self._initialize_logging()
-
-        # SA weights initialization
-
-        if self.config.get("weighting") == "SA":
-            self.weights = {
-                key: nn.Parameter(
-                    torch.rand(
-                        (
-                            getattr(
-                                self.train_dataloader.fluid_data, f"txy_{key}"
-                            ).shape[0],
-                            1,
-                        ),
-                        dtype=torch.float32,
-                        device=self.rank,
-                    ),
-                    requires_grad=True,
-                )
-                for key in [
-                    "fluid",
-                    "left",
-                    "right",
-                    "bottom",
-                    "up",
-                    "initial",
-                    "fluid_points",
-                ]
-            }
-
-            self.sa_optimizer = torch.optim.Adam(
-                [param for param in self.weights.values() if param.requires_grad],
-                lr=0.005,
-                maximize=True,
-            )
-        # Uncomment the following line to use Tensorboard
-        # self._initialize_tensorboard()
 
     def get_random_minibatch(self, dataset_length):
         batch_indices = random.sample(range(dataset_length), self.batch_size)
@@ -162,7 +125,36 @@ class BaseTrainer:
 
     def track_training(self, epoch, elapsed_time):
         # Logger tracking
-        printing.print_losses(self, epoch, elapsed_time)
+
+        tloss = sum(self.epoch_loss[loss].item() for loss in self.config["loss_list"])
+
+        self.running_time += elapsed_time
+        message = ""
+        message += "".join(
+            f"{loss}: {self.epoch_loss.get(loss).item():.3e} | "
+            for loss in self.config["loss_list"]
+        )
+
+        additional_message = (
+            f" Epoch: {epoch} | Time: {elapsed_time:.2f}s | rTime: {self.running_time:.3e}h | "
+            f"LR: {self.optimizer_fluid.param_groups[0]['lr']:.3e} |loss: {tloss:.3e} | "
+        )
+
+        if self.max_eig_hessian_bc_log:
+            additional_message += (
+                f"max_eigH_bc: {self.max_eig_hessian_bc_log[-1]:.3e} | "
+            )
+        if self.max_eig_hessian_ic_log:
+            additional_message += (
+                f"max_eigH_ic: {self.max_eig_hessian_ic_log[-1]:.3e} | "
+            )
+        if self.max_eig_hessian_res_log:
+            additional_message += (
+                f"max_eigH_res: {self.max_eig_hessian_res_log[-1]:.3e} | "
+            )
+
+        final_message = additional_message + message
+        self.logger.print(final_message)
 
         # # Tensorboard tracking
         # if self.writer is not None:
@@ -174,7 +166,7 @@ class BaseTrainer:
 
         state = {
             "model_state_dict": self.fluid_model.state_dict(),
-            "optimizer_state_dict": self.fluid_optimizer.state_dict(),
+            "optimizer_state_dict": self.optimizer_fluid.state_dict(),
             "loss_history": self.loss_history,
             "max_eig_hessian_bc_log": self.max_eig_hessian_bc_log,
             "max_eig_hessian_ic_log": self.max_eig_hessian_ic_log,
@@ -199,8 +191,14 @@ class BaseTrainer:
 
         if epoch == self.config.get("total_epochs"):
             self.logger.print("_summary of the model _")
-            printing.print_config(self)
+            print_config(self)
 
         self.logger.print(
             f"_save_checkpoint: [GPU:{self.rank}] Epoch {epoch} | Training checkpoint saved at {model_path}"
         )
+
+
+def print_config(model):
+    model.logger.print("model configuration:")
+    for key, value in model.config.items():
+        model.logger.print(f"{key} : {value}")

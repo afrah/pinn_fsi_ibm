@@ -5,19 +5,21 @@ import torch.nn as nn
 import torch.optim as optim
 import sys
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.getcwd(), "../.."))
+
+# PROJECT_ROOT = os.path.abspath(os.path.join(os.getcwd(), "../.."))
 
 
-## Start: Importing local packages. As I don't know how to run it as module
-## with torchrun  (e.g., python -m trainer.Coronary_ddp_trainer)
+# ## Start: Importing local packages. As I don't know how to run it as module
+# ## with torchrun  (e.g., python -m trainer.Coronary_ddp_trainer)
 
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
+# if PROJECT_ROOT not in sys.path:
+#     sys.path.insert(0, PROJECT_ROOT)
 
 from src.nn.pde import navier_stokes_2D_IBM
-from src.trainer.base_trainer import BaseTrainer
+from src.trainer_M1.base_trainer import BaseTrainer
 from src.nn.nn_functions import MSE
 from src.utils.max_eigenvlaue_of_hessian import power_iteration
+from src.utils.udpate_grad_stat import update_weights_grad_stat
 
 ## End: Importing local packages
 
@@ -27,7 +29,7 @@ class Trainer(BaseTrainer):
         self,
         train_dataloader,
         fluid_model: nn.Module,
-        fluid_optimizer: optim.Optimizer,
+        optimizer_fluid: optim.Optimizer,
         fluid_scheduler,
         rank: int,
         config,
@@ -35,62 +37,58 @@ class Trainer(BaseTrainer):
         super(Trainer, self).__init__(
             train_dataloader,
             fluid_model,
-            fluid_optimizer,
+            optimizer_fluid,
             fluid_scheduler,
             rank,
             config,
         )
+        if self.config.get("weighting") == "grad_stat":
+            self.alpha = 0.5
+            self.gamma = 10.0  ## used for normalizing the weights between [0, gamma]
+            self.weights = {
+                key: torch.tensor(
+                    1.0,
+                    requires_grad=False,
+                )
+                .float()
+                .to(self.rank)
+                for key in self.epoch_loss.keys()
+            }
 
     def _run_epoch(self, epoch):
         # self.train_dataloader.sampler.set_epoch(epoch)
 
         if self.rank == 0:
-            start_time = time.time()
-
+            t1 = time.time()
         # print("inside _run_epoch" , epoch)
 
         bclosses = self._compute_losses()
 
-        if self.config.get("weighting") == "SA":
+        if self.config.get("weighting") == "grad_stat":
 
             if epoch % 1000 == 0:
+                if epoch != 0:
+                    update_weights_grad_stat(
+                        self.fluid_model,
+                        bclosses,
+                        self.alpha,
+                        self.weights,
+                        self.gamma,
+                    )
                 for key, value in self.weights.items():
-                    print(f"Mean of {key} weights : {torch.mean(value).item():.2f}")
+                    print(f"Mean of {key} weights : {value.item():.2e}")
             total_loss = sum(
-                [
-                    torch.mean((self.weights.get("left") * bclosses["left"])),
-                    torch.mean((self.weights.get("right") * bclosses["right"])),
-                    torch.mean((self.weights.get("bottom") * bclosses["bottom"])),
-                    torch.mean((self.weights.get("up") * bclosses["up"])),
-                    torch.mean(
-                        (self.weights.get("fluid_points") * bclosses["fluid_points"])
-                    ),
-                    torch.mean((self.weights.get("initial") * bclosses["initial"])),
-                    torch.mean((self.weights.get("fluid") * bclosses["fluid"])),
-                ]
+                torch.mean(torch.square(self.weights[key] * torch.sqrt(bclosses[key])))
+                for key in self.weights.keys()
             )
+
         else:
             print("Weighting is not implemented")
 
+        self.optimizer_fluid.zero_grad()
+
         if self.rank == 0:
-            elapsed_time = time.time() - start_time
-
-        self.fluid_optimizer.zero_grad()
-        if self.config.get("weighting") == "SA":
-            self.sa_optimizer.zero_grad()
-
-        ##### ____ Update Weights ____#####
-
-        #### update schedular and optimizer
-
-        ### printing
-        bclosses["left"] = torch.mean(bclosses["left"])
-        bclosses["right"] = torch.mean(bclosses["right"])
-        bclosses["bottom"] = torch.mean(bclosses["bottom"])
-        bclosses["up"] = torch.mean(bclosses["up"])
-        bclosses["fluid_points"] = torch.mean(bclosses["fluid_points"])
-        bclosses["initial"] = torch.mean(bclosses["initial"])
-        bclosses["fluid"] = torch.mean(bclosses["fluid"])
+            elapsed_time1 = time.time() - t1
 
         self.update_epoch_loss(bclosses)
 
@@ -117,20 +115,27 @@ class Trainer(BaseTrainer):
             self.max_eig_hessian_ic_log.append(
                 power_iteration(self.fluid_model, loss_initial)
             )
+
+        if self.rank == 0:
+            t2 = time.time()
+
+        total_loss.backward()
+        self.optimizer_fluid.step()
+        self.fluid_scheduler.step()
+
+        if self.rank == 0:
+            elapsed_time2 = time.time() - t2
+            elapsed_time = elapsed_time1 + elapsed_time2
+
+        if self.rank == 0 and epoch % self.config.get("print_every") == 0:
             self.track_training(
                 int(epoch / self.config.get("print_every")),
                 elapsed_time,
             )
-        total_loss.backward()
-        self.fluid_optimizer.step()
-        self.fluid_scheduler.step()
-
-        if self.config.get("weighting") == "SA":
-            self.sa_optimizer.step()
 
     def _compute_losses(self):
-        data_mean = self.train_dataloader.fluid_data.mean_x
-        data_std = self.train_dataloader.fluid_data.std_x
+        data_mean = self.train_dataloader.fluid_data.mean_x[:3]
+        data_std = self.train_dataloader.fluid_data.std_x[:3]
 
         txy_domain = self.train_dataloader.fluid_data.txy_fluid
         uvp_domain = self.train_dataloader.fluid_data.uvp_fluid
@@ -219,8 +224,8 @@ class Trainer(BaseTrainer):
             torch.square(pred_sensors[:, 0] - uvp_sensors[:, 0])
             + torch.square(pred_sensors[:, 1] - uvp_sensors[:, 1])
             + torch.square(pred_sensors[:, 2] - uvp_sensors[:, 2])
-            # + torch.square(pred_sensors[:, 3] - uvp_sensors[:, 3])
-            # + torch.square(pred_sensors[:, 4] - uvp_sensors[:, 4])
+            + torch.square(pred_sensors[:, 3] - uvp_sensors[:, 3])
+            + torch.square(pred_sensors[:, 4] - uvp_sensors[:, 4])
         )
         # p ## nonzero
         # +  (pred_sensors[:, 3], uvp_sensors[:, 3])## nonzero
@@ -228,11 +233,11 @@ class Trainer(BaseTrainer):
         ## presssure training is necessary
 
         return {
-            "left": lleft,
-            "right": lright,
-            "bottom": lbottom,
-            "up": lup,
-            "fluid_points": lsensors,
-            "initial": linitial,
-            "fluid": lphy,
+            "left": torch.mean(lleft),
+            "right": torch.mean(lright),
+            "bottom": torch.mean(lbottom),
+            "up": torch.mean(lup),
+            "fluid_points": torch.mean(lsensors),
+            "initial": torch.mean(linitial),
+            "fluid": torch.mean(lphy),
         }

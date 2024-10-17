@@ -288,6 +288,20 @@ class Trainer(BaseTrainer):
         batch_indices = self.get_random_minibatch(
             self.train_dataloader.fluid_data.txy_left.shape[0]
         )
+        
+        continuity, f_u, f_v = navier_stokes_2D_IBM(
+            txy_fluid,
+            self.model_force,
+            self.train_dataloader.fluid_data.mean_x[:3],
+            self.train_dataloader.fluid_data.std_x[:3],
+        )
+
+        # pred_sensors = self.model_force(txy_domain, data_mean, data_std)
+        lphy = (
+            torch.square(continuity)
+            + torch.square(f_u - uvp_fluid[:, 3])
+            + torch.square(f_v - uvp_fluid[:, 4])
+        )
 
         pred_fluid = self.model_force(
             txy_fluid,
@@ -307,7 +321,7 @@ class Trainer(BaseTrainer):
         )
 
         return {
-            "force_points": lfluid + lsolid,
+            "force_points": lfluid  + 0.1 * lphy,
         }
 
     def get_mini_batch_data(self, data):

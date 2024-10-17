@@ -67,7 +67,7 @@ class Trainer(BaseTrainer):
         if self.rank == 0:
             elapsed_time = time.time() - start_time
 
-        self.fluid_optimizer.zero_grad()
+        self.optimizer_fluid.zero_grad()
 
         self.update_epoch_loss(bclosses)
 
@@ -100,7 +100,7 @@ class Trainer(BaseTrainer):
                 elapsed_time,
             )
         total_loss.backward()
-        self.fluid_optimizer.step()
+        self.optimizer_fluid.step()
         self.fluid_scheduler.step()
 
     def _compute_losses(self):
