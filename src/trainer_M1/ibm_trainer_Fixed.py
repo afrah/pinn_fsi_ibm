@@ -53,12 +53,12 @@ class Trainer(BaseTrainer):
         total_loss = sum(
             [
                 2.0 * ((bclosses["left"])),
-                2.0 * ((bclosses["right"])),
-                2.0 * ((bclosses["bottom"])),
-                2.0 * ((bclosses["up"])),
+                # 2.0 * ((bclosses["right"])),
+                # 2.0 * ((bclosses["bottom"])),
+                # 2.0 * ((bclosses["up"])),
                 4.0 * ((bclosses["fluid_points"])),
-                2.0 * ((bclosses["initial"])),
-                0.01 * ((bclosses["fluid"])),
+                # 2.0 * ((bclosses["initial"])),
+                0.005 * ((bclosses["fluid"])),
             ]
         )
 
@@ -217,11 +217,11 @@ class Trainer(BaseTrainer):
         ## presssure training is necessary
 
         return {
-            "left": lleft,
+            "left": lleft + lright + lbottom + lup,
             "right": lright,
             "bottom": lbottom,
             "up": lup,
-            "fluid_points": lsensors,
+            "fluid_points": lsensors + linitial,
             "initial": linitial,
             "fluid": lphy,
         }
