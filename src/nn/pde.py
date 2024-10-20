@@ -1,7 +1,7 @@
 import torch
 
 
-def navier_stokes_2D_IBM(txy, fluid_model, data_mean, data_std):
+def navier_stokes_2D_IBM(txy, fluid_model, force_model, data_mean, data_std):
     """_summary_
 
     Args:
@@ -21,12 +21,16 @@ def navier_stokes_2D_IBM(txy, fluid_model, data_mean, data_std):
     y = txy[:, 2]
 
     uvp_pred = fluid_model(torch.stack([ttime, x, y], dim=1), data_mean, data_std)
+    uvp_pred_force = force_model(torch.stack([ttime, x, y], dim=1), data_mean, data_std)
 
     DENSITY = 1.0
     mu = 0.01  # kinematic viscosity
     u = uvp_pred[:, 0]
     v = uvp_pred[:, 1]
     pressure = uvp_pred[:, 2]
+
+    fx = uvp_pred_force[:, 3]
+    fy = uvp_pred_force[:, 4]
 
     # First Derivatives
     u_t = torch.autograd.grad(

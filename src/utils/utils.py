@@ -12,14 +12,17 @@ def flatten(gradients):
     return torch.cat([g.view(-1) for g in gradients if g is not None])
 
 
-def lp_error(pred, exact, text, logger, p):
+def lp_error(pred, exact, text, logger=None, p=2):
     num = np.sum(np.abs(pred - exact) ** p)
     denum = np.sum(np.abs(exact) ** p)
     if denum == 0.0:
         denum = 1.0
         text = text + " (Absolute (denominator is zero))"
     result = ((num / denum) ** (1 / p)) * 100
-    logger.print("%s  : %5.2f " % (text, result))
+    if logger is not None:
+        logger.print("%s  : %5.2f " % (text, result))
+    else:
+        print("%s  : %5.2f " % (text, result))
     return result
 
 

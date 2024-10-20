@@ -1,7 +1,7 @@
 import pickle
+import torch
 import numpy as np
 import scipy
-import torch
 import scipy.io
 
 import h5py
@@ -9,24 +9,24 @@ import h5py
 dist = "Sobol"
 
 
-# fluidP = 0.006
-# solid_interfaceP = 0.07
-# solidP = 0.07
-# leftP = 0.15
-# rightP = 0.15
-# bottomP = 0.15
-# upP = 0.15
-# initialP = 0.07
+# fluidP = 1
+# solid_interfaceP = 1
+# solidP = 1
+# leftP = 1
+# rightP = 1
+# bottomP = 1
+# upP = 1
+# initialP = 1
 
 
-fluidP = 0.01
-solid_interfaceP = 0.1
-solidP = 0.1
-leftP = 0.2
-rightP = 0.2
-bottomP = 0.2
-upP = 0.2
-initialP = 0.2
+fluidP = 0.005
+solid_interfaceP = 0.05
+solidP = 0.04
+leftP = 0.1
+rightP = 0.1
+bottomP = 0.1
+upP = 0.1
+initialP = 0.05
 
 
 def generate_sobol_sequence(low, high, n):
@@ -37,10 +37,6 @@ def generate_sobol_sequence(low, high, n):
     result = np.floor((bounds[0] + (bounds[1] - bounds[0]) * input_tb))
     result = [int(i) for i in result]
     return result
-
-
-import torch
-import numpy as np
 
 
 class FluidData:
@@ -244,27 +240,15 @@ def process_file(path, dist):
     # Remove initial points
     fluid_points, fluid_initial1 = remove_initial(fluid_points)
     solid, solid_initial1 = remove_initial(solid)
-    # interface, initial_interface = remove_initial(interface)
-    initial_interface = interface
-    initial = np.concatenate([fluid_initial1, solid_initial1, initial_interface], 0)
+    interface, initial_interface = remove_initial(interface)
+    # initial_interface = interface
+    initial = np.concatenate([solid_initial1, fluid_initial1], 0)
 
     # Extract boundary data
     left = fluid[np.where(fluid[:, 1] == fluid[:, 1].min())[0], :]
     right = fluid[np.where(fluid[:, 1] == fluid[:, 1].max())[0], :]
     bottom = fluid[np.where(fluid[:, 2] == fluid[:, 2].min())[0], :]
     up = fluid[np.where(fluid[:, 2] == fluid[:, 2].max())[0], :]
-
-    # print("insize process file")
-    # print(f"fluid shape: {fluid.shape}")
-    # print(f"fluid_points shape: {fluid_points.shape}")
-    # print(f"interface shape: {interface.shape}")
-    # print(f"solid shape: {solid.shape}")
-    # print(f"left shape: {left.shape}")
-    # print(f"right shape: {right.shape}")
-    # print(f"bottom shape: {bottom.shape}")
-    # print(f"up shape: {up.shape}")
-    # print(f"initial shape: {initial.shape}")
-    # print(f"initial_interface shape: {initial_interface.shape}")
 
     # Subsample data
     fluid = subsample(fluid, fluidP, dist, SEED)
@@ -277,28 +261,14 @@ def process_file(path, dist):
     up = subsample(up, upP, dist, SEED)
     initial = subsample(initial, initialP, dist, SEED)
 
-    # print("insize process file")
-    # print(f"fluid shape: {fluid.shape}")
-    # print(f"fluid_points shape: {fluid_points.shape}")
-    # print(f"interface shape: {interface.shape}")
-    # print(f"solid shape: {solid.shape}")
-    # print(f"left shape: {left.shape}")
-    # print(f"right shape: {right.shape}")
-    # print(f"bottom shape: {bottom.shape}")
-    # print(f"up shape: {up.shape}")
-    # print(f"initial shape: {initial.shape}")
-
-    # left = np.concatenate([left, bottom, right], 0)
-
-    # Sort data by time
-    fluid = fluid[np.argsort(fluid[:, 0])]
-    fluid_points = fluid_points[np.argsort(fluid_points[:, 0])]
-    interface = interface[np.argsort(interface[:, 0])]
-    solid = solid[np.argsort(solid[:, 0])]
-    left = left[np.argsort(left[:, 0])]
-    right = right[np.argsort(right[:, 0])]
-    bottom = bottom[np.argsort(bottom[:, 0])]
-    up = up[np.argsort(up[:, 0])]
+    # fluid = fluid[np.argsort(fluid[:, 0])]
+    # fluid_points = fluid_points[np.argsort(fluid_points[:, 0])]
+    # interface = interface[np.argsort(interface[:, 0])]
+    # solid = solid[np.argsort(solid[:, 0])]
+    # left = left[np.argsort(left[:, 0])]
+    # right = right[np.argsort(right[:, 0])]
+    # bottom = bottom[np.argsort(bottom[:, 0])]
+    # up = up[np.argsort(up[:, 0])]
 
     return [
         fluid,
