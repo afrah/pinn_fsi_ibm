@@ -246,7 +246,7 @@ def process_file(path, dist):
     solid, solid_initial1 = remove_initial(solid)
     # interface, initial_interface = remove_initial(interface)
     initial_interface = interface
-    initial = np.concatenate([fluid_initial1, solid_initial1, initial_interface], 0)
+    initial = np.concatenate([fluid_initial1, solid_initial1], 0)
 
     # Extract boundary data
     left = fluid[np.where(fluid[:, 1] == fluid[:, 1].min())[0], :]
