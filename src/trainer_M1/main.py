@@ -211,6 +211,9 @@ if __name__ == "__main__":
             "fluid_points",
             "initial",
             "fluid",
+            "vCoupling",
+            "lint_pts",
+            "int_initial",
         ]
 
     configuration = {

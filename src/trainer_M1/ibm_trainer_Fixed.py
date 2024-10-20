@@ -59,6 +59,9 @@ class Trainer(BaseTrainer):
                 4.0 * ((bclosses["fluid_points"])),
                 4.0 * ((bclosses["initial"])),
                 0.01 * ((bclosses["fluid"])),
+                1.0 * ((bclosses["lint_pts"])),
+                1.0 * ((bclosses["int_initial"])),
+                1.0 * ((bclosses["vCoupling"])),
             ]
         )
 
@@ -70,17 +73,9 @@ class Trainer(BaseTrainer):
         self.update_epoch_loss(bclosses)
 
         ### printing
-        if self.rank == 0 and epoch % self.config.get("print_every") == 0:
+        if self.rank == 0 and epoch % 10000 == 0:
 
-            loss_bc = sum(
-                [
-                    ((bclosses["left"])),
-                    ((bclosses["right"])),
-                    ((bclosses["bottom"])),
-                    ((bclosses["up"])),
-                    ((bclosses["fluid_points"])),
-                ]
-            )
+            loss_bc = sum(bclosses[key] for key in self.epoch_loss.keys())
             loss_initial = bclosses["initial"]
             loss_res = bclosses["fluid"]
 
@@ -115,54 +110,78 @@ class Trainer(BaseTrainer):
         data_mean = self.train_dataloader.fluid_data.mean_x[:3]
         data_std = self.train_dataloader.fluid_data.std_x[:3]
 
-        txy_domain = self.train_dataloader.fluid_data.txy_fluid
-        uvp_domain = self.train_dataloader.fluid_data.uvp_fluid
-        txy_sensors = self.train_dataloader.fluid_data.txy_fluid_points
-        txy_left = self.train_dataloader.fluid_data.txy_left
-        txy_right = self.train_dataloader.fluid_data.txy_right
-        txy_bottom = self.train_dataloader.fluid_data.txy_bottom
-        txy_up = self.train_dataloader.fluid_data.txy_up
-        txy_initial = self.train_dataloader.fluid_data.txy_initial
-
-        # txy_fluid = training_dataset[1]["txy_fluid"]
-        uvp_sensors = self.train_dataloader.fluid_data.uvp_fluid_points
-        uvp_left = self.train_dataloader.fluid_data.uvp_left
-        uvp_right = self.train_dataloader.fluid_data.uvp_right
-        uvp_bottom = self.train_dataloader.fluid_data.uvp_bottom
-        uvp_up = self.train_dataloader.fluid_data.uvp_up
-        uvp_initial = self.train_dataloader.fluid_data.uvp_initial
-
         # Access the randomly selected minibatch for each tensor
-        batch_indices = self.get_random_minibatch(txy_domain.shape[0])
-        txy_domain = txy_domain[batch_indices, :]
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.fluid_data.txy_fluid.shape[0]
+        )
+        txy_fluid = self.train_dataloader.fluid_data.txy_fluid[batch_indices, :]
 
-        batch_indices = self.get_random_minibatch(txy_sensors.shape[0])
-        txy_sensors = txy_sensors[batch_indices, :]
-        uvp_sensors = uvp_sensors[batch_indices, :]
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.fluid_data.txy_fluid_points.shape[0]
+        )
+        txy_fluid_points = self.train_dataloader.fluid_data.txy_fluid_points[
+            batch_indices, :
+        ]
+        uvp_fluid_points = self.train_dataloader.fluid_data.uvp_fluid_points[
+            batch_indices, :
+        ]
 
-        batch_indices = self.get_random_minibatch(txy_left.shape[0])
-        txy_left = txy_left[batch_indices, :]
-        uvp_left = uvp_left[batch_indices, :]
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.fluid_data.txy_left.shape[0]
+        )
+        txy_left = self.train_dataloader.fluid_data.txy_left[batch_indices, :]
+        uvp_left = self.train_dataloader.fluid_data.uvp_left[batch_indices, :]
 
-        batch_indices = self.get_random_minibatch(txy_right.shape[0])
-        txy_right = txy_right[batch_indices, :]
-        uvp_right = uvp_right[batch_indices, :]
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.fluid_data.txy_right.shape[0]
+        )
+        txy_right = self.train_dataloader.fluid_data.txy_right[batch_indices, :]
+        uvp_right = self.train_dataloader.fluid_data.uvp_right[batch_indices, :]
 
-        batch_indices = self.get_random_minibatch(txy_bottom.shape[0])
-        txy_bottom = txy_bottom[batch_indices, :]
-        uvp_bottom = uvp_bottom[batch_indices, :]
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.fluid_data.txy_bottom.shape[0]
+        )
+        txy_bottom = self.train_dataloader.fluid_data.txy_bottom[batch_indices, :]
+        uvp_bottom = self.train_dataloader.fluid_data.uvp_bottom[batch_indices, :]
 
-        batch_indices = self.get_random_minibatch(txy_up.shape[0])
-        txy_up = txy_up[batch_indices, :]
-        uvp_up = uvp_up[batch_indices, :]
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.fluid_data.txy_up.shape[0]
+        )
+        txy_up = self.train_dataloader.fluid_data.txy_up[batch_indices, :]
+        uvp_up = self.train_dataloader.fluid_data.uvp_up[batch_indices, :]
 
-        batch_indices = self.get_random_minibatch(txy_initial.shape[0])
-        txy_initial = txy_initial[batch_indices, :]
-        uvp_initial = uvp_initial[batch_indices, :]
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.fluid_data.txy_initial.shape[0]
+        )
+        txy_initial = self.train_dataloader.fluid_data.txy_initial[batch_indices, :]
+        uvp_initial = self.train_dataloader.fluid_data.uvp_initial[batch_indices, :]
 
-        # print("txy_domain shape : " , txy_domain.shape)
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.interface_data.txy_interface.shape[0]
+        )
+        txy_interface = self.train_dataloader.interface_data.txy_interface[
+            batch_indices, :
+        ]
+        uvp_interface = self.train_dataloader.interface_data.uvp_interface[
+            batch_indices, :
+        ]
+
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.interface_data.txy_initial_interface.shape[0]
+        )
+        txy_initial_interface = (
+            self.train_dataloader.interface_data.txy_initial_interface[batch_indices, :]
+        )
+        uvp_initial_interface = (
+            self.train_dataloader.interface_data.uvp_initial_interface[batch_indices, :]
+        )
+        # print("self.train_dataloader.fluid_data.txy_fluid shape : " , self.train_dataloader.fluid_data.txy_fluid.shape)
         continuity, f_u, f_v = navier_stokes_2D_IBM(
-            txy_domain, self.fluid_model, data_mean, data_std
+            txy_fluid,
+            self.fluid_model,
+            self.fluid_model,
+            data_mean,
+            data_std,
         )
 
         lphy = torch.mean(
@@ -203,19 +222,51 @@ class Trainer(BaseTrainer):
         )
         ## presssure training is necessary
 
-        pred_sensors = self.fluid_model(txy_sensors, data_mean, data_std)
+        pred_sensors = self.fluid_model(txy_fluid_points, data_mean, data_std)
         lsensors = torch.mean(
-            torch.square(pred_sensors[:, 0] - uvp_sensors[:, 0])
-            + torch.square(pred_sensors[:, 1] - uvp_sensors[:, 1])
-            + torch.square(pred_sensors[:, 2] - uvp_sensors[:, 2])
-            + torch.square(pred_sensors[:, 3] - uvp_sensors[:, 3])
-            + torch.square(pred_sensors[:, 4] - uvp_sensors[:, 4])
+            torch.square(pred_sensors[:, 0] - uvp_fluid_points[:, 0])
+            + torch.square(pred_sensors[:, 1] - uvp_fluid_points[:, 1])
+            + torch.square(pred_sensors[:, 2] - uvp_fluid_points[:, 2])
+            + torch.square(pred_sensors[:, 3] - uvp_fluid_points[:, 3])
+            + torch.square(pred_sensors[:, 4] - uvp_fluid_points[:, 4])
         )
-        # p ## nonzero
-        # +  (pred_sensors[:, 3], uvp_sensors[:, 3])## nonzero
-        # +  (pred_sensors[:, 4], uvp_sensors[:, 4])## nonzero
-        ## presssure training is necessary
+        pred_fluid1 = self.fluid_model(
+            txy_interface,
+            self.train_dataloader.interface_data.mean_x[:3],
+            self.train_dataloader.interface_data.std_x[:3],
+        )
 
+        vCoupling2 = torch.mean(
+            torch.square(uvp_interface[:, 0] - pred_fluid1[:, 0])
+            + torch.square(uvp_interface[:, 1] - pred_fluid1[:, 1])
+        )
+
+        pred_initial = self.fluid_model(
+            txy_initial_interface,
+            self.train_dataloader.interface_data.mean_x[:3],
+            self.train_dataloader.interface_data.std_x[:3],
+        )
+        initial_interface = torch.mean(
+            # torch.square(pred_initial[:, 0] - uvp_intitial[:, 0])
+            # + torch.square(pred_initial[:, 1] - uvp_intitial[:, 1])
+            # + torch.square(pred_initial[:, 2] - uvp_intitial[:, 2])
+            torch.square(pred_initial[:, 3] - uvp_initial_interface[:, 3])
+            + torch.square(pred_initial[:, 4] - uvp_initial_interface[:, 4])
+        )
+
+        pred_interface = self.fluid_model(
+            txy_interface,
+            self.train_dataloader.interface_data.mean_x[:3],
+            self.train_dataloader.interface_data.std_x[:3],
+        )
+
+        linterface = torch.mean(
+            torch.square(pred_interface[:, 0] - uvp_interface[:, 0])
+            + torch.square(pred_interface[:, 1] - uvp_interface[:, 1])
+            + torch.square(pred_interface[:, 2] - uvp_interface[:, 2])
+            + torch.square(pred_interface[:, 3] - uvp_interface[:, 3])
+            + torch.square(pred_interface[:, 4] - uvp_interface[:, 4])
+        )
         return {
             "left": lleft + lright + lup,
             "right": lright,
@@ -224,4 +275,7 @@ class Trainer(BaseTrainer):
             "fluid_points": lsensors,
             "initial": linitial,
             "fluid": lphy,
+            "vCoupling":  vCoupling2,
+            "lint_pts": linterface,
+            "int_initial": initial_interface,
         }
