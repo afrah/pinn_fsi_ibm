@@ -41,34 +41,64 @@ def init_model_and_data(config, local_rank):
     solver_name = config.get("solver")
 
     model_class = load_model_class(solver_name)
-    model_fluid = model_class(config.get("network_fluid"), config.get("activation"))
-    model_force = model_class(config.get("network_force"), config.get("activation"))
-
-    optimizer_fluid = torch.optim.Adam(
-        list(model_fluid.parameters()),
+    fluid_model_velocity = model_class(
+        config.get("fluid_network_velocity"), config.get("activation")
+    )
+    fluid_model_force = model_class(
+        config.get("fluid_network_force"), config.get("activation")
+    )
+    interface_model_velocity = model_class(
+        config.get("interface_network_velocity"), config.get("activation")
+    )
+    interface_model_force = model_class(
+        config.get("interface_network_force"), config.get("activation")
+    )
+    fluid_optimizer_velocity = torch.optim.Adam(
+        list(fluid_model_velocity.parameters()),
         lr=0.005,
         weight_decay=1e-8,
     )
-
-    optimizer_force = torch.optim.Adam(
-        list(model_force.parameters()),
+    fluid_optimizer_force = torch.optim.Adam(
+        list(fluid_model_velocity.parameters()),
         lr=0.005,
         weight_decay=1e-8,
     )
-    scheduler_fluid = torch.optim.lr_scheduler.StepLR(
-        optimizer_fluid, step_size=5000, gamma=0.85
+    interface_optimizer_velocity = torch.optim.Adam(
+        list(interface_model_velocity.parameters()),
+        lr=0.005,
+        weight_decay=1e-8,
     )
-    scheduler_force = torch.optim.lr_scheduler.StepLR(
-        optimizer_force, step_size=5000, gamma=0.85
+    interface_optimizer_force = torch.optim.Adam(
+        list(interface_model_velocity.parameters()),
+        lr=0.005,
+        weight_decay=1e-8,
+    )
+    fluid_scheduler_velocity = torch.optim.lr_scheduler.StepLR(
+        fluid_optimizer_velocity, step_size=5000, gamma=0.85
+    )
+    fluid_scheduler_force = torch.optim.lr_scheduler.StepLR(
+        fluid_optimizer_velocity, step_size=5000, gamma=0.85
+    )
+    interface_scheduler_velocity = torch.optim.lr_scheduler.StepLR(
+        interface_optimizer_velocity, step_size=5000, gamma=0.85
+    )
+    interface_scheduler_force = torch.optim.lr_scheduler.StepLR(
+        interface_optimizer_velocity, step_size=5000, gamma=0.85
     )
     return (
         train_dataloader,
-        model_fluid,
-        model_force,
-        optimizer_fluid,
-        optimizer_force,
-        scheduler_fluid,
-        scheduler_force,
+        fluid_model_velocity,
+        fluid_model_force,
+        interface_model_velocity,
+        interface_model_force,
+        fluid_optimizer_velocity,
+        fluid_optimizer_force,
+        interface_optimizer_velocity,
+        interface_optimizer_force,
+        fluid_scheduler_velocity,
+        fluid_scheduler_force,
+        interface_scheduler_velocity,
+        interface_scheduler_force,
     )
 
 
@@ -82,69 +112,99 @@ def main(config):
     local_rank, world_size = ddp_setup()
     (
         train_dataloader,
-        model_fluid,
-        model_force,
-        optimizer_fluid,
-        optimizer_force,
-        scheduler_fluid,
-        scheduler_force,
+        fluid_model_velocity,
+        fluid_model_force,
+        interface_model_velocity,
+        interface_model_force,
+        fluid_optimizer_velocity,
+        fluid_optimizer_force,
+        interface_optimizer_velocity,
+        interface_optimizer_force,
+        fluid_scheduler_velocity,
+        fluid_scheduler_force,
+        interface_scheduler_velocity,
+        interface_scheduler_force,
     ) = init_model_and_data(config, local_rank)
 
     if config.get("problem") == "fsi":
         if config.get("weighting") == "Fixed":
-            from src.trainer_M3 import ibm_trainer_Fixed
+            from src.trainer_M4 import ibm_trainer_Fixed
 
             trainer = ibm_trainer_Fixed.Trainer(
                 train_dataloader,
-                model_fluid,
-                model_force,
-                optimizer_fluid,
-                optimizer_force,
-                scheduler_fluid,
-                scheduler_force,
+                fluid_model_velocity,
+                fluid_model_force,
+                interface_model_velocity,
+                interface_model_force,
+                fluid_optimizer_velocity,
+                fluid_optimizer_force,
+                interface_optimizer_velocity,
+                interface_optimizer_force,
+                fluid_scheduler_velocity,
+                fluid_scheduler_force,
+                interface_scheduler_velocity,
+                interface_scheduler_force,
                 local_rank,
                 config,
             )
         elif config.get("weighting") == "RBA":
-            from src.trainer_M2 import ibm_trainer_RBA
+            from src.trainer_M4 import ibm_trainer_RBA
 
             trainer = ibm_trainer_RBA.Trainer(
                 train_dataloader,
-                model_fluid,
-                model_force,
-                optimizer_fluid,
-                optimizer_force,
-                scheduler_fluid,
-                scheduler_force,
+                fluid_model_velocity,
+                fluid_model_force,
+                interface_model_velocity,
+                interface_model_force,
+                fluid_optimizer_velocity,
+                fluid_optimizer_force,
+                interface_optimizer_velocity,
+                interface_optimizer_force,
+                fluid_scheduler_velocity,
+                fluid_scheduler_force,
+                interface_scheduler_velocity,
+                interface_scheduler_force,
                 local_rank,
                 config,
             )
         elif config.get("weighting") == "SA":
-            from src.trainer_M2 import ibm_trainer_SA
+            from src.trainer_M4 import ibm_trainer_SA
 
             trainer = ibm_trainer_SA.Trainer(
                 train_dataloader,
-                model_fluid,
-                model_force,
-                optimizer_fluid,
-                optimizer_force,
-                scheduler_fluid,
-                scheduler_force,
+                fluid_model_velocity,
+                fluid_model_force,
+                interface_model_velocity,
+                interface_model_force,
+                fluid_optimizer_velocity,
+                fluid_optimizer_force,
+                interface_optimizer_velocity,
+                interface_optimizer_force,
+                fluid_scheduler_velocity,
+                fluid_scheduler_force,
+                interface_scheduler_velocity,
+                interface_scheduler_force,
                 local_rank,
                 config,
             )
 
         elif config.get("weighting") == "grad_stat":
-            from src.trainer_M2 import ibm_trainer_grad_stat
+            from src.trainer_M4 import ibm_trainer_grad_stat
 
             trainer = ibm_trainer_grad_stat.Trainer(
                 train_dataloader,
-                model_fluid,
-                model_force,
-                optimizer_fluid,
-                optimizer_force,
-                scheduler_fluid,
-                scheduler_force,
+                fluid_model_velocity,
+                fluid_model_force,
+                interface_model_velocity,
+                interface_model_force,
+                fluid_optimizer_velocity,
+                fluid_optimizer_force,
+                interface_optimizer_velocity,
+                interface_optimizer_force,
+                fluid_scheduler_velocity,
+                fluid_scheduler_force,
+                interface_scheduler_velocity,
+                interface_scheduler_force,
                 local_rank,
                 config,
             )
@@ -232,13 +292,26 @@ if __name__ == "__main__":
         return parsed_list
 
     parser.add_argument(
-        "--network_force",
+        "--interface_network_velocity",
         required=True,
         type=partial(parse_list, data_type=int),  # Predefine data_type=int
         help="list of [input, nxhidden , output] weights (e.g., [2, 10, 10, 1])",
     )
     parser.add_argument(
-        "--network_fluid",
+        "--fluid_network_velocity",
+        required=True,
+        type=partial(parse_list, data_type=int),  # Predefine data_type=int
+        help="list of [input, nxhidden , output] weights (e.g., [2, 10, 10, 1])",
+    )
+
+    parser.add_argument(
+        "--interface_network_force",
+        required=True,
+        type=partial(parse_list, data_type=int),  # Predefine data_type=int
+        help="list of [input, nxhidden , output] weights (e.g., [2, 10, 10, 1])",
+    )
+    parser.add_argument(
+        "--fluid_network_force",
         required=True,
         type=partial(parse_list, data_type=int),  # Predefine data_type=int
         help="list of [input, nxhidden , output] weights (e.g., [2, 10, 10, 1])",
@@ -255,18 +328,23 @@ if __name__ == "__main__":
             "right",
             "bottom",
             "up",
-            "fluid_points",
+            "fluid_points_velocity",
+            "fluid_points_force",
             "initial",
             "fluid",
             "vCoupling",
-            "lint_pts",
-            "int_initial",
+            "interface_data_velocity",
+            "interface_data_force",
+            "interface_initial_velocity",
+            "interface_initial_force",
         ]
 
     configuration = {
         "batch_size": args.batch_size,
-        "network_fluid": args.network_fluid,
-        "network_force": args.network_force,
+        "fluid_network_velocity": args.fluid_network_velocity,
+        "fluid_network_force": args.fluid_network_force,
+        "interface_network_velocity": args.interface_network_velocity,
+        "interface_network_force": args.interface_network_force,
         "activation": args.activation,
         "solver": args.solver,
         "weighting": args.weighting,
