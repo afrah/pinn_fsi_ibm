@@ -17,7 +17,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.nn.pde import navier_stokes_2D_IBM
-from src.trainer_M3.base_trainer import BaseTrainer
+from src.trainer_M4.base_trainer import BaseTrainer
 from src.nn.nn_functions import MSE
 from src.utils.max_eigenvlaue_of_hessian import power_iteration
 from src.data.IBM_data_loader import IBM_data_loader
@@ -29,23 +29,35 @@ class Trainer(BaseTrainer):
     def __init__(
         self,
         train_dataloader: IBM_data_loader,
-        model_fluid: nn.Module,
-        model_force: nn.Module,
-        optimizer_fluid: optim.Optimizer,
-        optimizer_force: optim.Optimizer,
-        scheduler_fluid,
-        scheduler_force,
+        fluid_model_velocity,
+        fluid_model_force,
+        interface_model_velocity,
+        interface_model_force,
+        fluid_optimizer_velocity,
+        fluid_optimizer_force,
+        interface_optimizer_velocity,
+        interface_optimizer_force,
+        fluid_scheduler_velocity,
+        fluid_scheduler_force,
+        interface_scheduler_velocity,
+        interface_scheduler_force,
         rank: int,
         config,
     ) -> None:
         super(Trainer, self).__init__(
             train_dataloader,
-            model_fluid,
-            model_force,
-            optimizer_fluid,
-            optimizer_force,
-            scheduler_fluid,
-            scheduler_force,
+            fluid_model_velocity,
+            fluid_model_force,
+            interface_model_velocity,
+            interface_model_force,
+            fluid_optimizer_velocity,
+            fluid_optimizer_force,
+            interface_optimizer_velocity,
+            interface_optimizer_force,
+            fluid_scheduler_velocity,
+            fluid_scheduler_force,
+            interface_scheduler_velocity,
+            interface_scheduler_force,
             rank,
             config,
         )
@@ -60,28 +72,41 @@ class Trainer(BaseTrainer):
 
         losses_velocity, losses_force = self._compute_losses()
 
-        total_loss_velocity = sum(
+        total_loss_fluid_velocity = sum(
             [
                 2.0 * ((losses_velocity["left"])),
                 # 2.0 * ((losses_velocity["right"])),
                 # 2.0 * ((losses_velocity["bottom"])),
                 # 2.0 * ((losses_velocity["up"])),
-                2.0 * ((losses_velocity["fluid_points"])),
+                2.0 * ((losses_velocity["fluid_points_velocity"])),
                 4.0 * ((losses_velocity["initial"])),
                 0.1 * ((losses_velocity["fluid"])),
                 0.5 * ((losses_velocity["vCoupling"])),
             ]
         )
-        total_loss_force = sum(
+        total_loss_fluid_force = sum(
             [
-                1.0 * ((losses_force["lint_pts"])),
-                1.0 * ((losses_force["int_initial"])),
+                2.0 * ((losses_velocity["fluid_points_force"])),
+            ]
+        )
+        total_loss_interface_velocity = sum(
+            [
+                1.0 * ((losses_force["interface_data_velocity"])),
+                1.0 * ((losses_force["interface_initial_velocity"])),
                 1.0 * ((losses_velocity["vCoupling"])),
             ]
         )
+        total_loss_interface_force = sum(
+            [
+                1.0 * ((losses_force["interface_data_force"])),
+                1.0 * ((losses_force["interface_initial_force"])),
+            ]
+        )
 
-        self.optimizer_fluid.zero_grad()
-        self.optimizer_force.zero_grad()
+        self.fluid_optimizer_velocity.zero_grad()
+        self.fluid_optimizer_force.zero_grad()
+        self.interface_optimizer_velocity.zero_grad()
+        self.interface_optimizer_force.zero_grad()
         total_losses = {
             key: losses_velocity.get(key, 0) + losses_force.get(key, 0)
             for key in set(losses_velocity) | set(losses_force)
@@ -106,26 +131,32 @@ class Trainer(BaseTrainer):
             loss_res = total_losses["fluid"]
 
             self.max_eig_hessian_bc_log.append(
-                power_iteration(self.model_fluid, loss_bc)
+                power_iteration(self.fluid_model_velocity, loss_bc)
             )
             self.max_eig_hessian_res_log.append(
-                power_iteration(self.model_fluid, loss_res)
+                power_iteration(self.fluid_model_velocity, loss_res)
             )
             self.max_eig_hessian_ic_log.append(
-                power_iteration(self.model_fluid, loss_initial)
+                power_iteration(self.fluid_model_velocity, loss_initial)
             )
 
         if self.rank == 0:
             t2 = time.time()
 
-        total_loss_velocity.backward(retain_graph=True)
-        total_loss_force.backward(retain_graph=True)
+        total_loss_fluid_velocity.backward(retain_graph=True)
+        total_loss_fluid_force.backward(retain_graph=True)
+        total_loss_interface_velocity.backward(retain_graph=True)
+        total_loss_interface_force.backward(retain_graph=True)
 
-        self.optimizer_fluid.step()
-        self.scheduler_fluid.step()
+        self.fluid_optimizer_velocity.step()
+        self.fluid_optimizer_force.step()
+        self.fluid_scheduler_velocity.step()
+        self.fluid_scheduler_force.step()
 
-        self.optimizer_force.step()
-        self.scheduler_force.step()
+        self.interface_optimizer_velocity.step()
+        self.interface_optimizer_force.step()
+        self.interface_scheduler_velocity.step()
+        self.interface_scheduler_force.step()
 
         if self.rank == 0:
             elapsed_time2 = time.time() - t2
@@ -158,10 +189,10 @@ class Trainer(BaseTrainer):
         batch_indices = self.get_random_minibatch(
             self.train_dataloader.fluid_data.txy_fluid_points.shape[0]
         )
-        txy_sensors = self.train_dataloader.fluid_data.txy_fluid_points[
+        txy_fluid_points = self.train_dataloader.fluid_data.txy_fluid_points[
             batch_indices, :
         ]
-        uvp_sensors = self.train_dataloader.fluid_data.uvp_fluid_points[
+        uvp_fluid_points = self.train_dataloader.fluid_data.uvp_fluid_points[
             batch_indices, :
         ]
 
@@ -205,7 +236,11 @@ class Trainer(BaseTrainer):
             batch_indices, :
         ]
         continuity, f_u, f_v = navier_stokes_2D_IBM(
-            txy_domain, self.model_fluid, self.model_force, data_mean, data_std
+            txy_domain,
+            self.fluid_model_velocity,
+            self.interface_model_force,
+            data_mean,
+            data_std,
         )
 
         # pred_sensors = self.model_force(txy_domain, data_mean, data_std)
@@ -215,31 +250,31 @@ class Trainer(BaseTrainer):
 
         # lphy = torch.mean(torch.square(f_u) + torch.square(f_v))
 
-        pred_left = self.model_fluid(txy_left, data_mean, data_std)
+        pred_left = self.fluid_model_velocity(txy_left, data_mean, data_std)
         lleft = torch.mean(
             torch.square(pred_left[:, 0] - uvp_left[:, 0])
             + torch.square(pred_left[:, 1] - uvp_left[:, 1])
         )
 
-        pred_right = self.model_fluid(txy_right, data_mean, data_std)
+        pred_right = self.fluid_model_velocity(txy_right, data_mean, data_std)
         lright = torch.mean(
             torch.square(pred_right[:, 0] - uvp_right[:, 0])
             + torch.square(pred_right[:, 1] - uvp_right[:, 1])
         )
 
-        pred_bottom = self.model_fluid(txy_bottom, data_mean, data_std)
+        pred_bottom = self.fluid_model_velocity(txy_bottom, data_mean, data_std)
         lbottom = torch.mean(
             torch.square((pred_bottom[:, 0] - uvp_bottom[:, 0]))
             + torch.square(((pred_bottom[:, 1] - uvp_bottom[:, 1])))  ## zero  ## zero
         )
 
-        pred_up = self.model_fluid(txy_up, data_mean, data_std)
+        pred_up = self.fluid_model_velocity(txy_up, data_mean, data_std)
         lup = torch.mean(
             torch.square(((pred_up[:, 0] - uvp_up[:, 0])))
             + torch.square(((pred_up[:, 1] - uvp_up[:, 1])))  ## one
         )  ## zero
 
-        pred_initial = self.model_fluid(txy_initial, data_mean, data_std)
+        pred_initial = self.fluid_model_velocity(txy_initial, data_mean, data_std)
         linitial = torch.mean(
             torch.square(pred_initial[:, 0] - uvp_initial[:, 0])
             + torch.square(pred_initial[:, 1] - uvp_initial[:, 1])
@@ -247,47 +282,60 @@ class Trainer(BaseTrainer):
         )
         ## presssure training is necessary
 
-        pred_sensors = self.model_fluid(txy_sensors, data_mean, data_std)
-        lsensors = torch.mean(
-            torch.square(pred_sensors[:, 0] - uvp_sensors[:, 0])
-            + torch.square(pred_sensors[:, 1] - uvp_sensors[:, 1])
-            + torch.square(pred_sensors[:, 2] - uvp_sensors[:, 2])
-            + torch.square(pred_sensors[:, 3] - uvp_sensors[:, 3])
-            + torch.square(pred_sensors[:, 4] - uvp_sensors[:, 4])
+        pred_fluid_points_velocity = self.fluid_model_velocity(
+            txy_fluid_points, data_mean, data_std
+        )
+        lfluid_points_velocity = torch.mean(
+            torch.square(pred_fluid_points_velocity[:, 0] - uvp_fluid_points[:, 0])
+            + torch.square(pred_fluid_points_velocity[:, 1] - uvp_fluid_points[:, 1])
+            + torch.square(pred_fluid_points_velocity[:, 2] - uvp_fluid_points[:, 2])
         )
 
-        pred_fluid1 = self.model_fluid(
+        pred_fluid_points_force = self.fluid_model_force(
+            txy_fluid_points, data_mean, data_std
+        )
+        fluid_points_force = torch.mean(
+            torch.square(pred_fluid_points_force[:, 0] - uvp_fluid_points[:, 3])
+            + torch.square(pred_fluid_points_force[:, 1] - uvp_fluid_points[:, 4])
+        )
+
+        pred_interface_velocity1 = self.fluid_model_velocity(
             txy_interface_data,
             self.train_dataloader.interface_data.mean_x[:3],
             self.train_dataloader.interface_data.std_x[:3],
         )
 
         ## Add velocity coupling
-        pred_fluid2 = self.model_force(
+        pred_interface_velocity2 = self.interface_model_velocity(
             txy_interface_data,
             self.train_dataloader.interface_data.mean_x[:3],
             self.train_dataloader.interface_data.std_x[:3],
         )
 
         vCoupling = torch.mean(
-            torch.square(pred_fluid1[:, 0] - pred_fluid2[:, 0])
-            + torch.square(pred_fluid1[:, 1] - pred_fluid2[:, 1])
+            torch.square(
+                pred_interface_velocity1[:, 0] - pred_interface_velocity2[:, 0]
+            )
+            + torch.square(
+                pred_interface_velocity1[:, 1] - pred_interface_velocity2[:, 1]
+            )
         )
 
         vCoupling1 = torch.mean(
-            torch.square(uvp_interface_data[:, 0] - pred_fluid2[:, 0])
-            + torch.square(uvp_interface_data[:, 1] - pred_fluid2[:, 1])
+            torch.square(uvp_interface_data[:, 0] - pred_interface_velocity2[:, 0])
+            + torch.square(uvp_interface_data[:, 1] - pred_interface_velocity2[:, 1])
         )
         vCoupling2 = torch.mean(
-            torch.square(uvp_interface_data[:, 0] - pred_fluid1[:, 0])
-            + torch.square(uvp_interface_data[:, 1] - pred_fluid1[:, 1])
+            torch.square(uvp_interface_data[:, 0] - pred_interface_velocity1[:, 0])
+            + torch.square(uvp_interface_data[:, 1] - pred_interface_velocity1[:, 1])
         )
         return {
             "left": lleft + lright + lup,
             "right": lright,
             "bottom": lbottom,
             "up": lup,
-            "fluid_points": lsensors,
+            "fluid_points_velocity": lfluid_points_velocity,
+            "fluid_points_force": fluid_points_force,
             "initial": linitial,
             "fluid": lphy,
             "vCoupling": vCoupling + vCoupling1 + vCoupling2,
@@ -317,34 +365,57 @@ class Trainer(BaseTrainer):
             batch_indices, :
         ]
 
-        pred_initial = self.model_force(
+        pred_interface_initial_velocity = self.interface_model_velocity(
             txy_intitial,
             self.train_dataloader.interface_data.mean_x[:3],
             self.train_dataloader.interface_data.std_x[:3],
         )
-        linitial = torch.mean(
-            torch.square(pred_initial[:, 0] - uvp_intitial[:, 0])
-            + torch.square(pred_initial[:, 1] - uvp_intitial[:, 1])
-            + torch.square(pred_initial[:, 2] - uvp_intitial[:, 2])
-            + torch.square(pred_initial[:, 3] - uvp_intitial[:, 3])
-            + torch.square(pred_initial[:, 4] - uvp_intitial[:, 4])
+        linterface_initial_velocity = torch.mean(
+            torch.square(pred_interface_initial_velocity[:, 0] - uvp_intitial[:, 0])
+            + torch.square(pred_interface_initial_velocity[:, 1] - uvp_intitial[:, 1])
+            + torch.square(pred_interface_initial_velocity[:, 2] - uvp_intitial[:, 2])
         )
 
-        pred_interface = self.model_force(
+        pred_interface_initial_force = self.interface_model_force(
+            txy_intitial,
+            self.train_dataloader.interface_data.mean_x[:3],
+            self.train_dataloader.interface_data.std_x[:3],
+        )
+        linterface_initial_force = torch.mean(
+            torch.square(pred_interface_initial_force[:, 0] - uvp_intitial[:, 3])
+            + torch.square(pred_interface_initial_force[:, 1] - uvp_intitial[:, 4])
+        )
+
+        pred_interface_data_velocity = self.interface_model_velocity(
             txy_interface_data,
             self.train_dataloader.interface_data.mean_x[:3],
             self.train_dataloader.interface_data.std_x[:3],
         )
 
-        linterface = torch.mean(
-            torch.square(pred_interface[:, 0] - uvp_interface_data[:, 0])
-            + torch.square(pred_interface[:, 1] - uvp_interface_data[:, 1])
-            + torch.square(pred_interface[:, 2] - uvp_interface_data[:, 2])
-            + torch.square(pred_interface[:, 3] - uvp_interface_data[:, 3])
-            + torch.square(pred_interface[:, 4] - uvp_interface_data[:, 4])
+        linterface_data_velocity = torch.mean(
+            torch.square(pred_interface_data_velocity[:, 0] - uvp_interface_data[:, 0])
+            + torch.square(
+                pred_interface_data_velocity[:, 1] - uvp_interface_data[:, 1]
+            )
+            + torch.square(
+                pred_interface_data_velocity[:, 2] - uvp_interface_data[:, 2]
+            )
+        )
+
+        pred_interface_data_force = self.interface_model_force(
+            txy_interface_data,
+            self.train_dataloader.interface_data.mean_x[:3],
+            self.train_dataloader.interface_data.std_x[:3],
+        )
+
+        linterface_data_force = torch.mean(
+            torch.square(pred_interface_data_force[:, 0] - uvp_interface_data[:, 3])
+            + torch.square(pred_interface_data_force[:, 1] - uvp_interface_data[:, 4])
         )
 
         return {
-            "lint_pts": linterface,
-            "int_initial": linitial,
+            "interface_data_velocity": linterface_data_velocity,
+            "interface_data_force": linterface_data_force,
+            "interface_initial_velocity": linterface_initial_velocity,
+            "interface_initial_force": linterface_initial_force,
         }

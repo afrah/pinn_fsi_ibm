@@ -16,23 +16,35 @@ class BaseTrainer:
     def __init__(
         self,
         train_dataloader: IBM_data_loader,
-        model_fluid: nn.Module,
-        model_force: nn.Module,
-        optimizer_fluid: optim.Optimizer,
-        optimizer_force: optim.Optimizer,
-        scheduler_fluid,
-        scheduler_force,
+        fluid_model_velocity,
+        fluid_model_force,
+        interface_model_velocity,
+        interface_model_force,
+        fluid_optimizer_velocity,
+        fluid_optimizer_force,
+        interface_optimizer_velocity,
+        interface_optimizer_force,
+        fluid_scheduler_velocity,
+        fluid_scheduler_force,
+        interface_scheduler_velocity,
+        interface_scheduler_force,
         rank: int,
         config,
     ) -> None:
         self.rank = rank
-        self.model_fluid = model_fluid.to(self.rank)
-        self.model_force = model_force.to(self.rank)
         self.train_dataloader = train_dataloader
-        self.optimizer_fluid = optimizer_fluid
-        self.optimizer_force = optimizer_force
-        self.scheduler_fluid = scheduler_fluid
-        self.scheduler_force = scheduler_force
+        self.fluid_model_velocity = fluid_model_velocity.to(self.rank)
+        self.fluid_model_force = fluid_model_force.to(self.rank)
+        self.interface_model_velocity = interface_model_velocity.to(self.rank)
+        self.interface_model_force = interface_model_force.to(self.rank)
+        self.fluid_optimizer_velocity = fluid_optimizer_velocity
+        self.fluid_optimizer_force = fluid_optimizer_force
+        self.interface_optimizer_velocity = interface_optimizer_velocity
+        self.interface_optimizer_force = interface_optimizer_force
+        self.fluid_scheduler_velocity = fluid_scheduler_velocity
+        self.fluid_scheduler_force = fluid_scheduler_force
+        self.interface_scheduler_velocity = interface_scheduler_velocity
+        self.interface_scheduler_force = interface_scheduler_force
         self.config = config
         self.running_time = 0.0
         self.initial_epoch_loss = {}
@@ -51,8 +63,11 @@ class BaseTrainer:
 
         # SA weights initialization
 
-    def get_random_minibatch(self, dataset_length):
-        batch_indices = random.sample(range(dataset_length), self.batch_size)
+    def get_random_minibatch(self, dataset_length, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        min_lenght = min(dataset_length, batch_size)
+        batch_indices = random.sample(range(dataset_length), min_lenght)
         return batch_indices
 
     def _initialize_logging(self):
@@ -85,9 +100,9 @@ class BaseTrainer:
     def _tb_log_histograms(self, epoch):
         for loss_name, loss in self.epoch_loss.items():
             if loss_name not in ["lphy"]:
-                self.model_fluid.zero_grad()
+                self.fluid_model_velocity.zero_grad()
                 loss.backward(retain_graph=True)
-                for name, param in self.model_fluid.named_parameters():
+                for name, param in self.fluid_model_velocity.named_parameters():
                     if "weight" in name and param.grad is not None:
                         if param.grad is not None:
                             self.writer.add_histogram(
@@ -95,16 +110,16 @@ class BaseTrainer:
                             )
 
         # Handle physics loss separately
-        self.model_fluid.zero_grad()
+        self.fluid_model_velocity.zero_grad()
         self.epoch_loss["lphy"].backward(retain_graph=True)
-        for name, param in self.model_fluid.named_parameters():
+        for name, param in self.fluid_model_velocity.named_parameters():
             if "weight" in name and param.grad is not None:
                 if param.grad is not None:
                     self.writer.add_histogram(
                         f"Grad/ploss/{name}", param.grad.cpu(), epoch
                     )
 
-        for name, param in self.model_fluid.named_parameters():
+        for name, param in self.fluid_model_velocity.named_parameters():
             if "weight" in name and param.grad is not None:
                 self.writer.add_histogram(name, param.cpu().detach().numpy(), epoch)
 
@@ -138,7 +153,7 @@ class BaseTrainer:
             self.epoch_loss,
             self.config,
             self.running_time,
-            self.optimizer_fluid.param_groups[0]["lr"],
+            self.fluid_optimizer_velocity.param_groups[0]["lr"],
             epoch,
             self.logger,
             elapsed_time,
@@ -156,8 +171,10 @@ class BaseTrainer:
         model_path = os.path.join(self.log_path, "model.pth")
 
         state = {
-            "model_fluid_state_dict": self.model_fluid.state_dict(),
-            "model_force_state_dict": self.model_force.state_dict(),
+            "fluid_model_velocity_state": self.fluid_model_velocity.state_dict(),
+            "fluid_model_force_state": self.fluid_model_force.state_dict(),
+            "interface_model_velocity_state": self.interface_model_velocity.state_dict(),
+            "interface_model_force_state": self.interface_model_force.state_dict(),
             "loss_history": self.loss_history,
             "max_eig_hessian_bc_log": self.max_eig_hessian_bc_log,
             "max_eig_hessian_ic_log": self.max_eig_hessian_ic_log,

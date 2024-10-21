@@ -29,8 +29,8 @@ def navier_stokes_2D_IBM(txy, fluid_model, force_model, data_mean, data_std):
     v = uvp_pred[:, 1]
     pressure = uvp_pred[:, 2]
 
-    fx = uvp_pred_force[:, 3]
-    fy = uvp_pred_force[:, 4]
+    # fx = uvp_pred_force[:, 3]
+    # fy = uvp_pred_force[:, 4]
 
     # First Derivatives
     u_t = torch.autograd.grad(

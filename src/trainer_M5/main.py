@@ -12,7 +12,7 @@ def ddp_setup():
     world_size = 4  # int(os.environ["WORLD_SIZE"])
     cuda = torch.cuda.is_available()
     print(f"ddp_setup: {0=},{world_size=}, {cuda=}")
-    torch.cuda.set_device(0)
+    torch.cuda.set_device(1)
 
     return local_rank, world_size
 
@@ -92,7 +92,7 @@ def main(config):
 
     if config.get("problem") == "fsi":
         if config.get("weighting") == "Fixed":
-            from src.trainer_M3 import ibm_trainer_Fixed
+            from src.trainer_M5 import ibm_trainer_Fixed
 
             trainer = ibm_trainer_Fixed.Trainer(
                 train_dataloader,
@@ -106,7 +106,7 @@ def main(config):
                 config,
             )
         elif config.get("weighting") == "RBA":
-            from src.trainer_M2 import ibm_trainer_RBA
+            from src.trainer_M5 import ibm_trainer_RBA
 
             trainer = ibm_trainer_RBA.Trainer(
                 train_dataloader,
@@ -120,7 +120,7 @@ def main(config):
                 config,
             )
         elif config.get("weighting") == "SA":
-            from src.trainer_M2 import ibm_trainer_SA
+            from src.trainer_M5 import ibm_trainer_SA
 
             trainer = ibm_trainer_SA.Trainer(
                 train_dataloader,
@@ -135,7 +135,7 @@ def main(config):
             )
 
         elif config.get("weighting") == "grad_stat":
-            from src.trainer_M2 import ibm_trainer_grad_stat
+            from src.trainer_M5 import ibm_trainer_grad_stat
 
             trainer = ibm_trainer_grad_stat.Trainer(
                 train_dataloader,
