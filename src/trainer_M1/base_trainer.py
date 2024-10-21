@@ -42,8 +42,11 @@ class BaseTrainer:
         if self.rank == 0:
             self._initialize_logging()
 
-    def get_random_minibatch(self, dataset_length):
-        batch_indices = random.sample(range(dataset_length), self.batch_size)
+    def get_random_minibatch(self, dataset_length, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        min_lenght = min(dataset_length, batch_size)
+        batch_indices = random.sample(range(dataset_length), min_lenght)
         return batch_indices
 
     def _initialize_logging(self):
