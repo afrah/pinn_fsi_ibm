@@ -56,12 +56,12 @@ class Trainer(BaseTrainer):
                 # 2.0 * ((losses_velocity["right"])),
                 # 2.0 * ((losses_velocity["bottom"])),
                 # 2.0 * ((losses_velocity["up"])),
-                4.0 * ((bclosses["fluid_points"])),
+                2.0 * ((bclosses["fluid_points"])),
                 4.0 * ((bclosses["initial"])),
-                0.01 * ((bclosses["fluid"])),
+                0.1 * ((bclosses["fluid"])),
                 1.0 * ((bclosses["lint_pts"])),
                 1.0 * ((bclosses["int_initial"])),
-                1.0 * ((bclosses["vCoupling"])),
+                0.5 * ((bclosses["vCoupling"])),
             ]
         )
 
@@ -230,15 +230,15 @@ class Trainer(BaseTrainer):
             + torch.square(pred_sensors[:, 3] - uvp_fluid_points[:, 3])
             + torch.square(pred_sensors[:, 4] - uvp_fluid_points[:, 4])
         )
-        pred_fluid1 = self.fluid_model(
+        pred_uvp_interface = self.fluid_model(
             txy_interface,
             self.train_dataloader.interface_data.mean_x[:3],
             self.train_dataloader.interface_data.std_x[:3],
         )
 
         vCoupling2 = torch.mean(
-            torch.square(uvp_interface[:, 0] - pred_fluid1[:, 0])
-            + torch.square(uvp_interface[:, 1] - pred_fluid1[:, 1])
+            torch.square(uvp_interface[:, 0] - pred_uvp_interface[:, 0])
+            + torch.square(uvp_interface[:, 1] - pred_uvp_interface[:, 1])
         )
 
         pred_initial = self.fluid_model(
@@ -275,7 +275,7 @@ class Trainer(BaseTrainer):
             "fluid_points": lsensors,
             "initial": linitial,
             "fluid": lphy,
-            "vCoupling":  vCoupling2,
+            "vCoupling": vCoupling2,
             "lint_pts": linterface,
             "int_initial": initial_interface,
         }

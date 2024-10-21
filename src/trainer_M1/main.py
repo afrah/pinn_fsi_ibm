@@ -44,7 +44,7 @@ def init_model_and_data(config, local_rank):
     model = model_class(config.get("network"), config.get("activation"))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-8)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.75)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5000, gamma=0.85)
     return train_dataloader, model, optimizer, scheduler
 
 
