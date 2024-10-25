@@ -1,10 +1,15 @@
 from functools import partial
-import sched
+import os
 import sys
 
 import torch
 
-DATASET_PATH = "/home/ubuntu/afrah/code/pinn_fsi_ibm/data/Fluid_trainingData.mat"
+DATASET_PATH = "./data/Fluid_trainingData.mat"
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.getcwd(), "../../.."))
+
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 
 def ddp_setup():
@@ -24,6 +29,7 @@ def init_model_and_data(config, local_rank):
         solver_to_module = {
             "xsig": "src.nn.xsigmoid",
             "tanh": "src.nn.tanh",
+            "bspline": "src.nn.bspline",
         }
         module = __import__(solver_to_module[solver_name], fromlist=["PINNKAN"])
         return getattr(module, "PINNKAN")
@@ -44,16 +50,21 @@ def init_model_and_data(config, local_rank):
     model_force = model_class(config.get("network_force"), config.get("activation"))
 
     optimizer_fluid = torch.optim.Adam(
-        model_fluid.parameters(), lr=0.005, weight_decay=1e-8
+        list(model_fluid.parameters()),
+        lr=0.005,
+        weight_decay=1e-8,
     )
+
     optimizer_force = torch.optim.Adam(
-        model_force.parameters(), lr=0.005, weight_decay=1e-8
+        list(model_force.parameters()),
+        lr=0.005,
+        weight_decay=1e-8,
     )
     scheduler_fluid = torch.optim.lr_scheduler.StepLR(
-        optimizer_fluid, step_size=2000, gamma=0.75
+        optimizer_fluid, step_size=5000, gamma=0.85
     )
     scheduler_force = torch.optim.lr_scheduler.StepLR(
-        optimizer_force, step_size=2000, gamma=0.75
+        optimizer_force, step_size=5000, gamma=0.85
     )
     return (
         train_dataloader,
@@ -178,6 +189,7 @@ if __name__ == "__main__":
         choices=[
             "tanh",
             "xsig",
+            "bspline",
         ],
         required=True,
         help="solver",
@@ -188,6 +200,7 @@ if __name__ == "__main__":
         choices=[
             "tanh",
             "xsig",
+            "bspline",
         ],
         required=True,
         help="activation",
@@ -251,6 +264,9 @@ if __name__ == "__main__":
             "fluid_points",
             "initial",
             "fluid",
+            "vCoupling",
+            "lint_pts",
+            "int_initial",
         ]
 
     configuration = {
