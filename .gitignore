@@ -141,4 +141,6 @@ output/
 
 copy_models.ipynb
 # *.pth
+
+*.pkl
  
