@@ -58,9 +58,9 @@ class Trainer(BaseTrainer):
                 # 2.0 * ((losses_velocity["up"])),
                 2.0 * ((bclosses["fluid_points"])),
                 4.0 * ((bclosses["initial"])),
-                0.1 * ((bclosses["fluid"])),
+                0.01 * ((bclosses["fluid"])),
                 1.0 * ((bclosses["lint_pts"])),
-                1.0 * ((bclosses["int_initial"])),
+                # 1.0 * ((bclosses["int_initial"])),
                 0.5 * ((bclosses["vCoupling"])),
             ]
         )
@@ -223,12 +223,12 @@ class Trainer(BaseTrainer):
         ## presssure training is necessary
 
         pred_sensors = self.fluid_model(txy_fluid_points, data_mean, data_std)
-        lsensors = torch.mean(
+        fluid_points = torch.mean(
             torch.square(pred_sensors[:, 0] - uvp_fluid_points[:, 0])
             + torch.square(pred_sensors[:, 1] - uvp_fluid_points[:, 1])
             + torch.square(pred_sensors[:, 2] - uvp_fluid_points[:, 2])
-            + torch.square(pred_sensors[:, 3] - uvp_fluid_points[:, 3])
-            + torch.square(pred_sensors[:, 4] - uvp_fluid_points[:, 4])
+            # + torch.square(pred_sensors[:, 3] - uvp_fluid_points[:, 3])
+            # + torch.square(pred_sensors[:, 4] - uvp_fluid_points[:, 4])
         )
         pred_uvp_interface = self.fluid_model(
             txy_interface,
@@ -240,6 +240,16 @@ class Trainer(BaseTrainer):
             torch.square(uvp_interface[:, 0] - pred_uvp_interface[:, 0])
             + torch.square(uvp_interface[:, 1] - pred_uvp_interface[:, 1])
         )
+
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.solid_data.txy_solid_points.shape[0]
+        )
+        txy_interface = self.train_dataloader.solid_data.txy_solid_points[
+            batch_indices, :
+        ]
+        uvp_interface = self.train_dataloader.solid_data.uvp_solid_points[
+            batch_indices, :
+        ]
 
         pred_initial = self.fluid_model(
             txy_initial_interface,
@@ -264,15 +274,35 @@ class Trainer(BaseTrainer):
             torch.square(pred_interface[:, 0] - uvp_interface[:, 0])
             + torch.square(pred_interface[:, 1] - uvp_interface[:, 1])
             + torch.square(pred_interface[:, 2] - uvp_interface[:, 2])
-            + torch.square(pred_interface[:, 3] - uvp_interface[:, 3])
-            + torch.square(pred_interface[:, 4] - uvp_interface[:, 4])
+            # + torch.square(pred_interface[:, 3] - uvp_interface[:, 3])
+            # + torch.square(pred_interface[:, 4] - uvp_interface[:, 4])
         )
+
+        batch_indices = self.get_random_minibatch(
+            self.train_dataloader.solid_data.txy_solid_points.shape[0]
+        )
+        txy_solid_data = self.train_dataloader.solid_data.txy_solid_points[
+            batch_indices, :
+        ]
+        uvp_solid_data = self.train_dataloader.solid_data.uvp_solid_points[
+            batch_indices, :
+        ]
+
+        pred_solid_data = self.fluid_model(txy_solid_data, data_mean, data_std)
+        solid_data = torch.mean(
+            torch.square(pred_solid_data[:, 0] - uvp_solid_data[:, 0])
+            + torch.square(pred_solid_data[:, 1] - uvp_solid_data[:, 1])
+            + torch.square(pred_solid_data[:, 2] - uvp_solid_data[:, 2])
+            + torch.square(pred_solid_data[:, 3] - uvp_solid_data[:, 3])
+            + torch.square(pred_solid_data[:, 4] - uvp_solid_data[:, 4])
+        )
+
         return {
             "left": lleft + lright + lup,
             "right": lright,
             "bottom": lbottom,
             "up": lup,
-            "fluid_points": lsensors,
+            "fluid_points": fluid_points + solid_data,
             "initial": linitial,
             "fluid": lphy,
             "vCoupling": vCoupling2,
