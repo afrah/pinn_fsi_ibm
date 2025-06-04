@@ -11,9 +11,9 @@ def xavier_initialization(layer):
             init.zeros_(layer.bias)
 
 
-class PINNKAN(nn.Module):
-    def __init__(self, network, activation="tanh2"):
-        super(PINNKAN, self).__init__()
+class MLP(nn.Module):
+    def __init__(self, network, activation="tanh"):
+        super(MLP, self).__init__()
         self.layers = nn.ModuleList()
         self.network = network
 
