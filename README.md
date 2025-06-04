@@ -39,11 +39,8 @@ To train models run the following commands.
 
 ```bash
 # fsi
-python -m main.XXX.py --data data/XXX.mat
+python -m trainer_M5.main --total_epochs 60000  --save_every 1000 --print_every 1000 --batch_size 128 --log_path ./checkpoints --solver bspline  --weights [] --network [3, 50, 50, 50, 3] 
 
-# Wave
-
-XXX
 ```
 
 ## Notebooks for Plots
@@ -57,10 +54,6 @@ Test models
 
 Plot loss history and test results
 
-- fsi training loss history: `fsi_plot_training_loss_history.ipynb`
-- fsi contour plot of test and error: `fsi_plot_contour.ipynb`
-- XXX
-
-Plot spectral analysis
-
+- fsi training loss history: `all_loss_history.ipynb`
+- fsi contour plot of test and error: `test_models_accuracy.ipynb`
 - XXX

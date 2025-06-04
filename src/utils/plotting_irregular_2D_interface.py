@@ -8,6 +8,9 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 import matplotlib.tri as tri
 
 
+## these functions for Lagragian  interface plotting
+
+
 def update_contourf_irregular_2D(frame_number, xs, ys, data, axsets, pcfsets, kwargs):
     list_of_collections = []
     for x, y, d, ax, pcfset, kw in zip(xs, ys, data, axsets, pcfsets, kwargs):
@@ -137,30 +140,32 @@ def draw_contourf_irregular_2D(
             axes_pad=axes_pad,
         )
 
-    # ani = FuncAnimation(
-    #     fig,
-    #     update_contourf_irregular_2D,
-    #     frames=len(time),
-    #     fargs=(
-    #         [xfa] * np.prod((nrows, ncols)),
-    #         [yfa] * np.prod((nrows, ncols)),
-    #         data,
-    #         axsets,
-    #         pcfsets,
-    #         kwargs_list,
-    #     ),
-    #     interval=50,
-    #     blit=False,
-    #     repeat=False,
-    #     save_count=sys.maxsize,
-    # )
 
-    # # FFwriter = mpa.FFMpegWriter(fps=30, codec="libx264")
-    # # writergif = PillowWriter(fps=30)
-    # ani.save(os.path.join(dirname, "result.gif"))
-    # plt.close(
-    #     "all",
-    # )
+### this code for animation
+# ani = FuncAnimation(
+#     fig,
+#     update_contourf_irregular_2D,
+#     frames=len(time),
+#     fargs=(
+#         [xfa] * np.prod((nrows, ncols)),
+#         [yfa] * np.prod((nrows, ncols)),
+#         data,
+#         axsets,
+#         pcfsets,
+#         kwargs_list,
+#     ),
+#     interval=50,
+#     blit=False,
+#     repeat=False,
+#     save_count=sys.maxsize,
+# )
+
+# # FFwriter = mpa.FFMpegWriter(fps=30, codec="libx264")
+# # writergif = PillowWriter(fps=30)
+# ani.save(os.path.join(dirname, "result.gif"))
+# plt.close(
+#     "all",
+# )
 
 
 #############################################################################################
