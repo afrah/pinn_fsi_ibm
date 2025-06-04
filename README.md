@@ -1,8 +1,25 @@
-# About
 
-This project is about ...
 
-Project structure
+
+# Learning Fluid-Structure Interaction Dynamics with Physics-Informed Neural Networks and Immersed Boundary Methods
+
+[![arXiv](https://img.shields.io/badge/arXiv-2505.18565-b31b1b.svg)](https://arxiv.org/abs/2505.18565)
+
+Source code of Learning Fluid-Structure Interaction Dynamics with Physics-Informed Neural Networks and Immersed Boundary Methods described in the paper: [Learning Fluid-Structure Interaction Dynamics with Physics-Informed Neural Networks and Immersed Boundary Methods](https://www.arxiv.org/abs/2505.18565).
+
+
+
+## About
+
+In this project, we propose a novel approach for learning fluid-structure interaction (FSI) dynamics using physics-informed neural networks (PINNs) and immersed boundary methods (IBMs). Our approach can accurately predict the dynamics of FSI systems with complex geometries and nonlinear behavior. We demonstrate the effectiveness of our approach on several benchmark problems, including the flow past a circular cylinder, the flow past a square cylinder, and the flag flapping in a fluid flow.
+
+
+### Prerequisites
+
+[Anaconda/Miniconda](https://docs.conda.io/en/latest/miniconda.html) (recommended) or any other Python environment.
+
+
+## Project structure
 
 ```bash
 .
@@ -45,7 +62,7 @@ Project structure
 │       └── utils.py
 ```
 
-## Setup environment
+### Setup environment
 
 The code is tested in Ubuntu 20.04 LTS, using Nvidia A100 GPU.
 
@@ -61,7 +78,7 @@ python -m src.utils.check_torch
     NCCL Version: (2, 20, 5)
 ```
 
-## Training
+### Training
 
 To train models run the following commands.
 
@@ -71,7 +88,7 @@ python -m src.trainer.m1_trainer
 
 ```
 
-## Notebooks for Plots
+### Notebooks for Plots
 
 We provided all pre-trained models and training loss log history. The notebooks can be run independently of training models.
 
@@ -83,9 +100,9 @@ Plot loss history and test results
 
 - fsi contour plot of test and error: `contour_plot_all_models_.ipynb`
 
-## license
+## License
 
-MIT License
+MIT [LICENSE](LICENSE)
 
 ## Citation
 
