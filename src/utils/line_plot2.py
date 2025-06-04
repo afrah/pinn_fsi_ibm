@@ -57,9 +57,8 @@ def enhanced_line_plot(
     plt.rcParams["grid.color"] = "lightgray"
     plt.rcParams["grid.linestyle"] = "--"
     plt.rcParams["grid.linewidth"] = 0.5
-    # plt.rcParams["axes.edgecolor"] = "black"
     plt.rcParams["axes.linewidth"] = 1.0
-    plt.rcParams["figure.dpi"] = 120  # Higher default DPI
+    plt.rcParams["figure.dpi"] = 120
 
     line_widths = [1.5, 3, 5]
     alphas = [0.9, 0.6, 0.3]
@@ -74,15 +73,12 @@ def enhanced_line_plot(
     fig_sizes = [(12, 10) for _ in data_labels]
 
     c = 2
-    # Process each data type (u, v, p, etc.)
     for data_label, bbox_to_anchor, fig_size in zip(
         data_labels, bbox_to_anchors, fig_sizes
     ):
-        # Calculate global min/max for consistent y-axis scaling within each variable
         global_min = float("inf")
         global_max = float("-inf")
 
-        # Find global min/max values for consistent scaling
         for z in data[data_label]:
             for t in timeStp:
                 for y in yStep:
@@ -90,18 +86,14 @@ def enhanced_line_plot(
                     global_min = min(global_min, np.min(values))
                     global_max = max(global_max, np.max(values))
 
-        # Add a small padding to the limits
         y_padding = 0.1 * (global_max - global_min)
         y_min = global_min - y_padding
         y_max = global_max + y_padding
-
-        # Create figure with improved layout
         fig = plt.figure(figsize=fig_size)
 
-        # Determine grid layout based on number of plots
         n_plots = len(timeStp) * len(yStep)
         n_cols = min(4, n_plots)
-        n_rows = (n_plots + n_cols - 1) // n_cols  # Ceiling division
+        n_rows = (n_plots + n_cols - 1) // n_cols
 
         grid = ImageGrid(
             fig,
@@ -113,12 +105,9 @@ def enhanced_line_plot(
             share_all=True,
         )
 
-        # Store lines for legend
         lines = []
         labels = []
         index = 0
-
-        # Plot each subplot
         for t in timeStp:
             for y in yStep:
                 if index >= len(grid):
@@ -127,18 +116,15 @@ def enhanced_line_plot(
                 ax = grid[index]
                 index += 1
 
-                # Plot each model's results
                 for z, color, label, line_style, lw, alpha in zip(
                     data[data_label], colors, models, line_styles, line_widths, alphas
                 ):
-                    # Get values, with potential scaling for certain variables
                     if data_label == "p":
                         y_value = z[:, y, :][t, :] / c
                     else:
                         y_value = z[:, y, :][t, :]
                     x_value = x_axis
 
-                    # Plot with enhanced line properties
                     line = ax.plot(
                         x_value,
                         y_value,
@@ -147,33 +133,29 @@ def enhanced_line_plot(
                         alpha=alpha,
                         label=label,
                         linestyle=line_style,
-                        marker="",  # No markers for cleaner look
-                        zorder=3,  # Put lines above grid
+                        marker="",
+                        zorder=3,
                     )
 
                     if len(lines) < len(models):
                         lines.append(line[0])
                         labels.append(label)
 
-                # Enhanced axis formatting
                 ax.set_title(
                     f"$t = {time_[t] * 10:.2f}$ , $y = {y_axis[y]:.2f}$",
                     fontsize=fontsize,
                     pad=10,
                 )
 
-                # Improve tick formatting
                 ax.xaxis.set_major_locator(MaxNLocator(4))
                 ax.yaxis.set_major_locator(MaxNLocator(4))
 
-                # Consistent y-axis limits for all plots of this variable
                 if data_label == "p":
                     ax.set_ylim([y_min / c, y_max / c])
                 else:
                     ax.set_ylim([y_min, y_max])
 
-                # Enhanced labels
-                if index % n_cols == 1:  # First column
+                if index % n_cols == 1:
                     if data_label in ["p"]:
                         ax.set_ylabel(
                             rf"${data_label}/c$→",
@@ -187,19 +169,15 @@ def enhanced_line_plot(
                             labelpad=7,
                         )
 
-                # Only show x-axis label for bottom row
                 if index > (n_rows - 1) * n_cols:
                     ax.set_xlabel("x→", fontsize=fontsize)
 
                 ax.tick_params(labelsize=labelsize)
-
-                # Make all spines visible
                 for spine in ax.spines.values():
                     spine.set_visible(False)
                     spine.set_linewidth(0.8)
                     spine.set_color("black")
 
-        # Add a single legend for the entire figure
         legend = fig.legend(
             lines,
             labels,

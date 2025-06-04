@@ -37,4 +37,17 @@
 │       ├── printing.py
 │       └── utils.py
 
-401 directories, 3423 files
+
+
+
+
+# Learning Fluid-Structure Interaction Dynamics with Physics-Informed Neural Networks and Immersed Boundary Methods
+
+This repository contains the code and data for the paper "Learning Fluid-Structure Interaction Dynamics with Physics-Informed Neural Networks and Immersed Boundary Methods" by Afrah Farea, Saiful Khan, Reza Daryani, Emre Cenk Ersan, and Mustafa Serdar Celebi.
+
+## About
+
+In this project, we propose a novel approach for learning fluid-structure interaction (FSI) dynamics using physics-informed neural networks (PINNs) and immersed boundary methods (IBMs). Our approach can accurately predict the dynamics of FSI systems with complex geometries and nonlinear behavior. We demonstrate the effectiveness of our approach on several benchmark problems, including the flow past a circular cylinder, the flow past a square cylinder, and the flag flapping in a fluid flow.
+
+
+The code is tested in Ubuntu 20.04 LTS, using Nvidia A100 GPU. To set up the environment, run the following command:

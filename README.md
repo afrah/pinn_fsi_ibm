@@ -78,23 +78,23 @@ We provided all pre-trained models and training loss log history. The notebooks 
 Test models
 
 - fsi: `fsi_test_model.ipynb`
-- XXX
 
 Plot loss history and test results
 
-- fsi training loss history: `all_loss_history.ipynb`
-- fsi contour plot of test and error: `test_models_accuracy.ipynb`
-- XXX
+- fsi contour plot of test and error: `contour_plot_all_models_.ipynb`
 
+## license
+
+MIT License
 
 ## Citation
 
 If you find this work useful, we would appreciate it if you could consider citing it:
 
 ```bibtex
-@article{fareaa2024learnable,
+@article{farea2025learning,
   title={Learning Fluid-Structure Interaction Dynamics with Physics-Informed Neural Networks and Immersed Boundary Methods},
-  author={Afrah Farea and Mustafa Serdar Celebi},
+  author={Farea, Afrah and Khan, Saiful and Daryani, Reza and Ersan, Emre Cenk and Celebi, Mustafa Serdar},
   journal={arXiv preprint arXiv:2505.18565},
   year={2025}
 }
