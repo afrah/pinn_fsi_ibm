@@ -34,41 +34,33 @@ logger.print(model_dirname)
 
 clear_gpu_memory()
 config = {
-    # Data parameters
     "dataset_type": "old",
     "training_selection_method": "Sobol",
-    # Model parameters
     "input_dim": 3,  # (x, y, z, t)
     "hidden_dim": 250,
     "hidden_layers_dim": 3,
-    # Physics parameters
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
-    # Training parameters
     "num_epochs": 60000,
     "batch_size": 256,
     "learning_rate": 1e-3,
-    # Loss weights
     "data_weight": 4.0,
     "physics_weight": 0.01,
     "boundary_weight": 2.0,
     "fsi_weight": 0.5,
     "initial_weight": 4.0,
-    # Checkpoint parameters
     "checkpoint_dir": "./checkpoints",
     "resume": None,
     "print_every": 500,
     "save_every": 2000,
-    # Data sampling parameters
     "fluid_sampling_ratio": 0.01,
     "interface_sampling_ratio": 0.07,
-    "solid_sampling_ratio": 0.02,
+    "solid_sampling_ratio": 0.0,
     "left_sampling_ratio": 0.1,
     "right_sampling_ratio": 0.15,
     "bottom_sampling_ratio": 0.1,
     "top_sampling_ratio": 0.1,
     "initial_sampling_ratio": 0.1,
-    # Device parameters
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     "solver": "mlp",
     "model": "m1",
@@ -80,10 +72,7 @@ for key, value in config.items():
 
 training_data_path = "./data/training_dataset/old"
 
-# Load data
-
 training_data = load_training_dataset(training_data_path, device=config["device"])
-# print(f"Training data type: {training_data[list(training_data.keys())[0]].dtype}")
 
 if training_data is None:
     training_data = prepare_training_data(
@@ -118,7 +107,6 @@ logger.print(
     f"Number of parameters: {sum(p.numel() for p in fluid_model.parameters())}"
 )
 
-# Create trainer
 trainer = PINNTrainer(
     fluid_model=fluid_model,
     training_data=training_data,
@@ -134,7 +122,6 @@ trainer = PINNTrainer(
 )
 
 
-# Train model
 loss_history = trainer.train(
     num_epochs=config["num_epochs"],
     batch_size=config["batch_size"],
