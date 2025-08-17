@@ -151,6 +151,19 @@ class PINNTrainer:
                                 )
                                 losses_list[domain_type] += loss 
 
+                            elif domain_type == "solid":
+                                solid_outputs = self.solid_model(inputs)
+
+                                loss = data_weight * torch.mean(
+                                    (solid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (solid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    + (solid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+                                losses_list["solid"] += loss 
+
+
 
                             elif domain_type == "fluid":
                                 # NS loss using PDE residuals at non interface points (fluid points)
@@ -193,18 +206,10 @@ class PINNTrainer:
                                     ** 2
                                 )
 
-                                interface_loss2 = data_weight * torch.mean(
-                                    (solid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
-                                    + (solid_outputs[:, 1:2] - batch_tensor[:, 4:5])
-                                    ** 2
-                                    + (solid_outputs[:, 2:3] - batch_tensor[:, 5:6])
-                                    ** 2
-                                )
+                                
+                                loss = interface_loss1
 
-                                loss = interface_loss1 + interface_loss2+ p_normal
-
-                                losses_list["interface"] += interface_loss1 + p_normal
-                                losses_list["solid_total"] += loss
+                                losses_list["interface"] += loss + p_normal
 
                             elif domain_type in ["left", "right", "up", "bottom"]:
                                 fluid_outputs = self.fluid_model(inputs)
@@ -241,8 +246,8 @@ class PINNTrainer:
                             losses_list[domain_type] /= domain_batches
                             if domain_type != "solid":
                                 losses_list["fluid_total"] += losses_list[domain_type]
-                            if domain_type in ["interface"]:
-                                losses_list["solid_total"] /= domain_batches
+                            if domain_type in ["interface", "solid"]:
+                                losses_list["solid_total"] += losses_list[domain_type]
 
                 fluid_total_loss = losses_list["fluid_total"]
                 solid_total_loss = losses_list["solid_total"]
