@@ -83,7 +83,7 @@ class PINNTrainer:
         num_epochs=1000,
         batch_size=128,
         data_weight=1.0,
-        physics_weight=1.0,
+        physics_weight=0.1,
         boundary_weight=1.0,
         fsi_weight=1.0,
         initial_weight=0.5,
