@@ -142,5 +142,5 @@ output/
 copy_models.ipynb
 # *.pth
 
-*.pkl
+# *.pkl
 #  data/training_dataset/old/all_interface_points_with_normals.csv
