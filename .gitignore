@@ -128,7 +128,7 @@ __pycache__/
 *.avi
 *.csv
 *.mp4
-old/
+# old/
 output.txt
 .ipynb
 archived/
