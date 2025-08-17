@@ -86,7 +86,7 @@ class PINNTrainer:
         physics_weight=1.0,
         boundary_weight=1.0,
         fsi_weight=1.0,
-        initial_weight=1.0,
+        initial_weight=0.5,
     ):
         data_loaders = {}
         self.training_data = {k: v.to(self.device) for k, v in self.training_data.items()}
@@ -104,7 +104,6 @@ class PINNTrainer:
                 )
 
             for epoch in range(num_epochs):
-                # Initialize epoch losses dictionary for each epoch
                 epoch_losses = {key: 0.0 for key in self.loss_list}
 
                 self.fluid_optimizer.zero_grad()
