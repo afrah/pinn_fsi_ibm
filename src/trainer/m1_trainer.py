@@ -24,7 +24,7 @@ from src.utils.fsi_visualization import (
     create_frames,
     create_animations_from_existing_frames,
 )
-from src.data.IBM_data_loader import load_training_dataset
+# from src.data.IBM_data_loader import load_training_dataset
 
 CHECKPOINT_PATH = "./checkpoints"
 logger = Logging(CHECKPOINT_PATH)

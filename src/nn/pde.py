@@ -1,7 +1,7 @@
 import torch
 
 
-def navier_stokes_2D_IBM(txy, fluid_model, force_model, data_mean, data_std):
+def navier_stokes_2D_IBM(fluid_model, t, x, y):
     """_summary_
 
     Args:
@@ -12,30 +12,22 @@ def navier_stokes_2D_IBM(txy, fluid_model, force_model, data_mean, data_std):
     Returns:
         _type_: _description_
     """
-    txy.requires_grad_(True)
+    t.requires_grad_(True)
+    x.requires_grad_(True)
+    y.requires_grad_(True)
 
-    # Variables
-
-    ttime = txy[:, 0]
-    x = txy[:, 1]
-    y = txy[:, 2]
-
-    uvp_pred = fluid_model(torch.stack([ttime, x, y], dim=1), data_mean, data_std)
-    uvp_pred_force = force_model(torch.stack([ttime, x, y], dim=1), data_mean, data_std)
-
+    inputs = torch.cat([t, x, y], dim=1).squeeze(1)
+    output = fluid_model(inputs)
     DENSITY = 1.0
     mu = 0.01  # kinematic viscosity
-    u = uvp_pred[:, 0]
-    v = uvp_pred[:, 1]
-    pressure = uvp_pred[:, 2]
-
-    # fx = uvp_pred_force[:, 3]
-    # fy = uvp_pred_force[:, 4]
+    u = output[:, 0]
+    v = output[:, 1]
+    pressure = output[:, 2]
 
     # First Derivatives
-    u_t = torch.autograd.grad(
-        u, ttime, grad_outputs=torch.ones_like(u), create_graph=True
-    )[0]
+    u_t = torch.autograd.grad(u, t, grad_outputs=torch.ones_like(u), create_graph=True)[
+        0
+    ]
 
     u_x = torch.autograd.grad(u, x, grad_outputs=torch.ones_like(u), create_graph=True)[
         0
@@ -43,9 +35,9 @@ def navier_stokes_2D_IBM(txy, fluid_model, force_model, data_mean, data_std):
     u_y = torch.autograd.grad(u, y, grad_outputs=torch.ones_like(u), create_graph=True)[
         0
     ]
-    v_t = torch.autograd.grad(
-        v, ttime, grad_outputs=torch.ones_like(v), create_graph=True
-    )[0]
+    v_t = torch.autograd.grad(v, t, grad_outputs=torch.ones_like(v), create_graph=True)[
+        0
+    ]
     v_x = torch.autograd.grad(v, x, grad_outputs=torch.ones_like(v), create_graph=True)[
         0
     ]
@@ -92,7 +84,6 @@ def navier_stokes_2D_IBM(txy, fluid_model, force_model, data_mean, data_std):
 def force_stress_2D_IBM(
     txy, fluid_model, force_model, fluid_min, fluid_max, solid_min, solid_max
 ):
-
     txy.requires_grad_(True)
 
     # Variables

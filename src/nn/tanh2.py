@@ -58,17 +58,9 @@ class MLP2(nn.Module):
                 nn.init.zeros_(m.bias)
 
     def forward(self, x, min_x=0.0, max_x=1.0):
-        """
-        Forward pass through the network
 
-        Args:
-            x: Input tensor
-
-        Returns:
-            Tensor with [u, v, p] predictions
-        """
         # Process through shared layers
-        x = 2 * (x - min_x) / (max_x - min_x) - 1
+        x = 2.0 * (x - min_x) / (max_x - min_x) - 1.0
         for i, layer in enumerate(self.shared_layers):
             x = layer(x)
             x = self.activation(x)
