@@ -247,7 +247,7 @@ class KANLinear(torch.nn.Module):
 class KAN(torch.nn.Module):
     def __init__(
         self,
-        layers_hidden,
+        network,
         grid_size=5,
         spline_order=3,
         scale_noise=0.1,
@@ -260,9 +260,10 @@ class KAN(torch.nn.Module):
         super(KAN, self).__init__()
         self.grid_size = grid_size
         self.spline_order = spline_order
+        self.network = network
 
         self.layers = torch.nn.ModuleList()
-        for in_features, out_features in zip(layers_hidden, layers_hidden[1:]):
+        for in_features, out_features in zip(network, network[1:]):
             self.layers.append(
                 KANLinear(
                     in_features,

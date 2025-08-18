@@ -121,7 +121,7 @@ class PINNTrainer:
                             inputs = torch.cat([time, x, y], dim=1).squeeze(1)
 
                             if domain_type in [
-                                # "solid",
+                                "solid",
                                 "fluid_points",
                             ]:  # these are non-interface points
                                 fluid_outputs = self.fluid_model(inputs)
@@ -135,7 +135,7 @@ class PINNTrainer:
                                 )
                                 epoch_losses[domain_type] += loss 
 
-                            if domain_type == "fluid":
+                            elif domain_type == "fluid":
                                 # NS loss using PDE residuals at non interface points (fluid points)
                                 [continuity, f_u, f_v] = navier_stokes_2D_IBM(
                                     self.fluid_model, time, x, y
@@ -174,7 +174,7 @@ class PINNTrainer:
                                     ** 2
                                 )
 
-                                loss = interface_loss  + 0.1 * p_normal# solid_loss +  #+ fsi_loss
+                                loss = interface_loss  + 0.01 * p_normal# solid_loss +  #+ fsi_loss
 
                                 epoch_losses[domain_type] += loss
 
@@ -233,7 +233,8 @@ class PINNTrainer:
                     self.logger.print(
                         f"Epoch {epoch}/{num_epochs}, "
                         f"Total: {epoch_losses['total'].item():.1e}, "
-                        f"Data(F&S): {sum(epoch_losses[b].item() for b in [ 'fluid_points']):.1e}, "
+                        f"Data(F): {sum(epoch_losses[b].item() for b in [ 'fluid_points']):.1e}, "
+                        f"Data(S): {sum(epoch_losses[b].item() for b in [ 'solid']):.1e}, "
                         f"Physics: {epoch_losses['fluid'].item():.1e}, "
                         f"Boundary: {sum(epoch_losses[b].item() for b in ['left', 'right', 'up', 'bottom']):.1e}, "
                         f"FSI: {epoch_losses['interface'].item():.1e}, "
