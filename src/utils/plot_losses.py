@@ -226,15 +226,15 @@ def plot_M1_loss_history(
             "show_avg": False,
             "show_lower": False,
         },
-        {
-            "data": loss_history["fluid_total"],
-            "color": model_color["total"],
-            "name": "Fluid total",
-            "alpha": 0.9,
-            "window": 100,
-            "show_avg": False,
-            "show_lower": False,
-        },
+        # {
+        #     "data": loss_history["fluid_total"],
+        #     "color": model_color["total"],
+        #     "name": "Fluid total",
+        #     "alpha": 0.9,
+        #     "window": 100,
+        #     "show_avg": False,
+        #     "show_lower": False,
+        # },
     ]
 
     plot_loss_history(

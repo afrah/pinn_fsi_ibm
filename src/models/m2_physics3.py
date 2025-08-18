@@ -163,8 +163,6 @@ class PINNTrainer:
                                 )
                                 losses_list["solid"] += loss 
 
-
-
                             elif domain_type == "fluid":
                                 # NS loss using PDE residuals at non interface points (fluid points)
                                 [continuity, f_u, f_v] = navier_stokes_2D_IBM(
@@ -206,7 +204,6 @@ class PINNTrainer:
                                     ** 2
                                 )
 
-                                
                                 loss = interface_loss1
 
                                 losses_list["interface"] += loss + p_normal
