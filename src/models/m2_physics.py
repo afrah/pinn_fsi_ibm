@@ -195,8 +195,8 @@ class PINNTrainer:
                                 p_y = torch.autograd.grad(p, y, grad_outputs=torch.ones_like(p), create_graph=True)[
                                     0
                                 ]
-                                p_normal = physics_weight * torch.mean((p_x * n_x + p_y * n_y)** 2)
-                                interface_loss1 = physics_weight * torch.mean(
+                                p_normal = 0.01 * torch.mean((p_x * n_x + p_y * n_y)** 2)
+                                interface_loss1 = 0.01 * torch.mean(
                                     (fluid_outputs[:, 0:1] - solid_outputs[:, 0:1]) ** 2
                                     + (fluid_outputs[:, 1:2] - solid_outputs[:, 1:2])
                                     ** 2
