@@ -126,7 +126,6 @@ testing_checkpoints/
 log/
 __pycache__/
 *.avi
-*.csv
 *.mp4
 # old/
 output.txt
