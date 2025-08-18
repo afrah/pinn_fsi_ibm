@@ -153,7 +153,6 @@ class PINNTrainer:
 
                             elif domain_type == "solid":
                                 solid_outputs = self.solid_model(inputs)
-
                                 loss = data_weight * torch.mean(
                                     (solid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
                                     + (solid_outputs[:, 1:2] - batch_tensor[:, 4:5])
@@ -272,7 +271,8 @@ class PINNTrainer:
                     self.logger.print(
                         f"Epoch {epoch}/{num_epochs}, "
                         f"Total: {losses_list['fluid_total'].item():.1e}, "
-                        f"Data(F&S): {sum(losses_list[b].item() for b in [ 'fluid_points']):.1e}, "
+                        f"Data(F): {sum(losses_list[b].item() for b in [ 'fluid_points']):.1e}, "
+                        f"Data(S): {sum(losses_list[b].item() for b in [ 'solid']):.1e}, "
                         f"Physics: {losses_list['fluid'].item():.1e}, "
                         f"Boundary: {sum(losses_list[b].item() for b in ['left', 'right', 'up', 'bottom']):.1e}, "
                         f"FSI: {losses_list['interface'].item():.1e}, "
