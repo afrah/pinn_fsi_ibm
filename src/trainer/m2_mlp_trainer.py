@@ -54,11 +54,11 @@ config = {
     "save_every": 400, #######################################
     "fluid_sampling_ratio": 0.01,
     "interface_sampling_ratio": 0.07,
-    "solid_sampling_ratio": 0.0,
+    "solid_sampling_ratio": 0.01,
     "left_sampling_ratio": 0.1,
-    "right_sampling_ratio": 0.15,
+    "right_sampling_ratio": 0.1,
     "bottom_sampling_ratio": 0.1,
-    "top_sampling_ratio": 0.1,
+    "top_sampling_ratio": 0.15,
     "initial_sampling_ratio": 0.1,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     "solver": "mlp",
@@ -72,7 +72,7 @@ for key, value in config.items():
 
 training_data_path = "./data/training_dataset/old"
 
-training_data = load_training_dataset(training_data_path, device=config["device"])
+training_data = None #load_training_dataset(training_data_path, device=config["device"])
 
 if training_data is None:
     training_data = prepare_training_data(

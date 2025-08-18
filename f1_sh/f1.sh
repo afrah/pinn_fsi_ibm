@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH -J  "qnn4pde"
+#SBATCH -J  "m1_kan"
 #SBATCH -A  kddcik
-#SBATCH -p  core40q
+#SBATCH -p  defq
 #SBATCH -o  h_%j.out
 #SBATCH -e  h_%j.err
 #SBATCH -N  1

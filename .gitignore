@@ -137,9 +137,9 @@ logs
 setting.md
 *.xlsx
 output/
-
+.err
 copy_models.ipynb
-# *.pth
+f1_sh
 
 # *.pkl
 #  data/training_dataset/old/all_interface_points_with_normals.csv
