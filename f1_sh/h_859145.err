@@ -1,1 +1,0 @@
-/okyanus/users/afarea/anaconda3_2021/envs/pinn-fsi-cpu/bin/python: Error while finding module specification for 'pinn_fsi_ibm.src.trainer.m2_trainer' (ModuleNotFoundError: No module named 'pinn_fsi_ibm')
