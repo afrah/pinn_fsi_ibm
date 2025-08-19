@@ -153,3 +153,7 @@ INFO:src.utils.logger:Final left: 1.100e-02 |  Final right: 6.095e-03 |  Final b
 INFO:src.utils.logger:_save_checkpoint: Epoch 8400 | Training checkpoint saved at ./checkpoints/2025-08-19_03-45-33-735120/model.pth
 INFO:src.utils.logger:Epoch 8400/60000, Total: 7.2e-02, Data(F&S): 1.0e-02, Physics: 1.4e-02, Boundary: 4.2e-02, FSI: 4.9e-05, Solid: 5.3e-03, Initial: 5.7e-03, LR: 1.00e-03
 INFO:src.utils.logger:Epoch 8600/60000, Total: 4.7e-02, Data(F&S): 7.4e-03, Physics: 1.4e-02, Boundary: 2.4e-02, FSI: 2.6e-05, Solid: 4.3e-03, Initial: 2.3e-03, LR: 1.00e-03
+INFO:src.utils.logger:Final losses:
+INFO:src.utils.logger:Final left: 3.310e-03 |  Final right: 4.591e-03 |  Final bottom: 3.776e-04 |  Final up: 1.273e-02 |  Final fluid: 1.420e-02 |  Final interface: 2.826e-05 |  Final initial: 2.112e-03 |  Final fluid_total: 4.462e-02 |  Final solid_total: 4.268e-03 | 
+INFO:src.utils.logger:_save_checkpoint: Epoch 8800 | Training checkpoint saved at ./checkpoints/2025-08-19_03-45-33-735120/model.pth
+INFO:src.utils.logger:Epoch 8800/60000, Total: 4.4e-02, Data(F&S): 7.1e-03, Physics: 1.4e-02, Boundary: 2.1e-02, FSI: 3.3e-05, Solid: 4.2e-03, Initial: 1.8e-03, LR: 1.00e-03
