@@ -13,7 +13,7 @@ from src.nn.bspline import KAN
 from src.utils.utils import clear_gpu_memory
 from src.data.IBM_data_loader import prepare_training_data, visualize_tensor_datasets
 from src.data.IBM_data_loader import load_fluid_testing_dataset
-from src.models.m1_physics import PINNTrainer
+from src.models.m2_physics_pressure import PINNTrainer
 from src.utils.plot_losses import plot_M1_loss_history
 from src.utils.fsi_visualization import (
     create_frames,
@@ -36,11 +36,11 @@ config = {
     "dataset_type": "old",
     "training_selection_method": "Sobol",
     "input_dim": 3,  # (x, y, z, t)
-    "hidden_dim": 100,  #######################################
+    "hidden_dim": 3,  #######################################
     "hidden_layers_dim": 3,
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
-    "num_epochs": 60000,  #######################################
+    "num_epochs": 10,  #######################################
     "batch_size": 128,
     "learning_rate": 1e-3,
     "data_weight": 2.0,
@@ -50,10 +50,10 @@ config = {
     "initial_weight": 4.0,
     "checkpoint_dir": CHECKPOINT_PATH,
     "resume": None,
-    "print_every": 1000,  #######################################
-    "save_every": 1000, #######################################
+    "print_every": 3,  #######################################
+    "save_every": 3, #######################################
     "fluid_sampling_ratio": 0.01,
-    "interface_sampling_ratio": 0.1,
+    "interface_sampling_ratio": 0.07,
     "solid_sampling_ratio": 0.01,
     "left_sampling_ratio": 0.1,
     "right_sampling_ratio": 0.1,
@@ -62,7 +62,7 @@ config = {
     "initial_sampling_ratio": 0.1,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     "solver": "kan",
-    "model": "m1",
+    "model": "m2",
 }
 
 
@@ -99,11 +99,14 @@ fluid_network = (
 )
 if config["solver"] == "mlp":
     fluid_model = MLP(network=fluid_network)
+    solid_model = MLP(network=fluid_network)
 else:
     fluid_model = KAN(fluid_network)
+    solid_model = KAN(fluid_network)
 
 logger.print("Fluid model architecture:")
 logger.print(fluid_model)
+logger.print(solid_model)
 logger.print(
     f"Number of parameters: {sum(p.numel() for p in fluid_model.parameters())}"
 )
@@ -112,6 +115,7 @@ logger.print(
 
 trainer = PINNTrainer(
     fluid_model=fluid_model,
+    solid_model=solid_model,
     training_data=training_data,
     learning_rate=config["learning_rate"],
     logger=logger,
@@ -142,13 +146,17 @@ model_state = torch.load(model_path)
 
 if model_state["solver"] == "mlp":
     fluid_model = MLP(model_state["fluid_network"]).to(config["device"])
+    solid_model = MLP(model_state["fluid_network"]).to(config["device"])
 else:
     fluid_model = KAN(model_state["fluid_network"]).to(config["device"])
+    solid_model = KAN(model_state["fluid_network"]).to(config["device"])
 
 
 fluid_model.load_state_dict(model_state["fluid_model_state_dict"])
+solid_model.load_state_dict(model_state["fluid_model_state_dict"])
 
 fluid_model.eval()
+solid_model.eval()
 
 logger.print(
     f"Number of parameters: {sum(p.numel() for p in fluid_model.parameters())}"
@@ -214,7 +222,7 @@ solid = Fluid_data["Solid_points"]
 
 with torch.no_grad():
     outputs_interface_m1 = np.array(
-        fluid_model(
+        solid_model(
             torch.cat(
                 [
                     torch.tensor(interface[:, 0:1], dtype=torch.float32),
@@ -514,12 +522,9 @@ analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="error")
 
 
-
-
-
 with torch.no_grad():
     outputs_solid_m1 = np.array(
-        fluid_model(
+        solid_model(
             torch.cat(
                 [
                     torch.tensor(solid[:, 0:1], dtype=torch.float32),

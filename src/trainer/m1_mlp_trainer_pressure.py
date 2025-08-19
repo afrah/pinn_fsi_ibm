@@ -13,7 +13,7 @@ from src.nn.bspline import KAN
 from src.utils.utils import clear_gpu_memory
 from src.data.IBM_data_loader import prepare_training_data, visualize_tensor_datasets
 from src.data.IBM_data_loader import load_fluid_testing_dataset
-from src.models.m1_physics import PINNTrainer
+from src.models.m1_physics_pressure import PINNTrainer
 from src.utils.plot_losses import plot_M1_loss_history
 from src.utils.fsi_visualization import (
     create_frames,
@@ -36,7 +36,7 @@ config = {
     "dataset_type": "old",
     "training_selection_method": "Sobol",
     "input_dim": 3,  # (x, y, z, t)
-    "hidden_dim": 100,  #######################################
+    "hidden_dim": 300,  #######################################
     "hidden_layers_dim": 3,
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
@@ -51,9 +51,9 @@ config = {
     "checkpoint_dir": CHECKPOINT_PATH,
     "resume": None,
     "print_every": 1000,  #######################################
-    "save_every": 1000, #######################################
+    "save_every": 2000, #######################################
     "fluid_sampling_ratio": 0.01,
-    "interface_sampling_ratio": 0.1,
+    "interface_sampling_ratio": 0.07,
     "solid_sampling_ratio": 0.01,
     "left_sampling_ratio": 0.1,
     "right_sampling_ratio": 0.1,
@@ -61,7 +61,7 @@ config = {
     "top_sampling_ratio": 0.15,
     "initial_sampling_ratio": 0.1,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    "solver": "kan",
+    "solver": "mlp",
     "model": "m1",
 }
 
@@ -512,9 +512,6 @@ analyzer.plot_time_series_for_variable("v", time_steps, transpose=True, solution
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="exact")
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="pred")
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="error")
-
-
-
 
 
 with torch.no_grad():

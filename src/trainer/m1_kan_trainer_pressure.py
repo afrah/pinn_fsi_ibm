@@ -13,13 +13,9 @@ from src.nn.bspline import KAN
 from src.utils.utils import clear_gpu_memory
 from src.data.IBM_data_loader import prepare_training_data, visualize_tensor_datasets
 from src.data.IBM_data_loader import load_fluid_testing_dataset
-from src.models.m1_physics import PINNTrainer
+from src.models.m1_physics_pressure import PINNTrainer
 from src.utils.plot_losses import plot_M1_loss_history
-from src.utils.fsi_visualization import (
-    create_frames,
-    create_animations_from_existing_frames,
-)
-from src.data.IBM_data_loader import load_training_dataset
+
 from src.utils.ContourPlotter import ContourPlotter
 
 
@@ -512,6 +508,7 @@ analyzer.plot_time_series_for_variable("v", time_steps, transpose=True, solution
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="exact")
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="pred")
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="error")
+
 
 
 
