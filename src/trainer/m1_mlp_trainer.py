@@ -30,7 +30,6 @@ model_dirname = logger.get_output_dir()
 logger.print(model_dirname)
 
 
-
 clear_gpu_memory()
 config = {
     "dataset_type": "old",
