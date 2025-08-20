@@ -71,11 +71,11 @@ class PINNTrainer:
         
         if self.solver == "mlp":
             self.fluid_scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                self.fluid_optimizer, "min", patience=500, factor=0.85
+                self.fluid_optimizer, "min", patience=8000, factor=0.95
             )
         else:
             self.fluid_scheduler = optim.lr_scheduler.StepLR(
-                self.fluid_optimizer, step_size=5000, gamma=0.85
+                self.fluid_optimizer, step_size=8000, gamma=0.95
             )
 
     def train(
@@ -98,7 +98,7 @@ class PINNTrainer:
                 dataset = TensorDataset(tensor_data)
                 current_batch_size = batch_size
                 if domain_type != "fluid":
-                    current_batch_size = batch_size // 2
+                    current_batch_size = batch_size #// 2
                 data_loaders[domain_type] = DataLoader(
                     dataset, batch_size=current_batch_size, shuffle=True
                 )
@@ -152,18 +152,18 @@ class PINNTrainer:
                         fluid_outputs = self.fluid_model(
                             torch.cat([time, x, y], dim=1).squeeze(1)
                         )
-                        p = fluid_outputs[:, 2]
-                        n_x = batch_tensor[:, 8]
-                        n_y = batch_tensor[:, 9]
+                        p = fluid_outputs[:, 2:3]
+                        n_x = batch_tensor[:, 8:9]
+                        n_y = batch_tensor[:, 9:10]
                         p_x = torch.autograd.grad(p, x, grad_outputs=torch.ones_like(p), create_graph=True)[
                             0
                         ]
                         p_y = torch.autograd.grad(p, y, grad_outputs=torch.ones_like(p), create_graph=True)[
                             0
                         ]
+                        
                         p_normal = physics_weight * torch.mean((p_x * n_x + p_y * n_y)** 2)
-                        # Calculate interface data loss
-                        interface_loss = data_weight * torch.mean(
+                        interface_loss = physics_weight * torch.mean(
                             (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
                             + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
                             ** 2
@@ -171,7 +171,7 @@ class PINNTrainer:
                             ** 2
                         )
 
-                        loss = interface_loss  + 0.01 * p_normal# solid_loss +  #+ fsi_loss
+                        loss =  p_normal + interface_loss
 
                         epoch_losses[domain_type] = loss
 
@@ -185,8 +185,8 @@ class PINNTrainer:
                             (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
                             + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
                             ** 2
-                            + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
-                            ** 2
+                            # + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                            # ** 2
                         )
 
                         epoch_losses[domain_type] = loss
@@ -212,8 +212,8 @@ class PINNTrainer:
 
                 for key in self.loss_list:
                     if key in epoch_losses:
-                        if key not in ["solid", "fluid_points"]:
-                            self.loss_history[key].append(epoch_losses[key].item())
+                        # if key not in ["solid", "fluid_points"]:
+                        self.loss_history[key].append(epoch_losses[key].item())
                     else:
                         print(f"Error: Key {key} not found in epoch_losses")
 

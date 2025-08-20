@@ -113,7 +113,7 @@ class PINNTrainer:
                 dataset = TensorDataset(tensor_data)
                 current_batch_size = batch_size
                 if domain_type != "fluid":
-                    current_batch_size = batch_size // 2
+                    current_batch_size = batch_size#// 2
                 data_loaders[domain_type] = DataLoader(
                     dataset, batch_size=current_batch_size, shuffle=True
                 )
@@ -194,8 +194,8 @@ class PINNTrainer:
                         p_y = torch.autograd.grad(p, y, grad_outputs=torch.ones_like(p), create_graph=True)[
                             0
                         ]
-                        p_normal = 0.01 * torch.mean((p_x * n_x + p_y * n_y)** 2)
-                        interface_loss1 = 0.01 * torch.mean(
+                        p_normal =  torch.mean((p_x * n_x + p_y * n_y)** 2)
+                        interface_loss1 = torch.mean(
                             (fluid_outputs[:, 0:1] - solid_outputs[:, 0:1]) ** 2
                             + (fluid_outputs[:, 1:2] - solid_outputs[:, 1:2])
                             ** 2
@@ -203,9 +203,9 @@ class PINNTrainer:
                             ** 2
                         )
 
-                        loss = interface_loss1
+                        loss = physics_weight *  interface_loss1
 
-                        losses_list["interface"] = loss + p_normal
+                        losses_list["interface"] = physics_weight *  interface_loss1 + physics_weight *  p_normal
 
                     elif domain_type in ["left", "right", "up", "bottom"]:
                         fluid_outputs = self.fluid_model(inputs)
@@ -253,8 +253,8 @@ class PINNTrainer:
 
                 for key in self.loss_list:
                     if key in losses_list:
-                        if key not in ["solid", "fluid_points"]:
-                            self.loss_history[key].append(losses_list[key].item())
+                        # if key not in ["solid", "fluid_points"]:
+                        self.loss_history[key].append(losses_list[key].item())
                     else:
                         print(f"Error: Key {key} not found in epoch_losses")
 

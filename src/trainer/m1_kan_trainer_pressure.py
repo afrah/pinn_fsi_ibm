@@ -32,7 +32,7 @@ config = {
     "dataset_type": "old",
     "training_selection_method": "Sobol",
     "input_dim": 3,  # (x, y, z, t)
-    "hidden_dim": 100,  #######################################
+    "hidden_dim": 300,  #######################################
     "hidden_layers_dim": 3,
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
@@ -40,16 +40,16 @@ config = {
     "batch_size": 128,
     "learning_rate": 1e-3,
     "data_weight": 2.0,
-    "physics_weight": 0.01,
-    "boundary_weight": 2.0,
+    "physics_weight": 0.005,
+    "boundary_weight": 4.0,
     "fsi_weight": 0.5,
-    "initial_weight": 4.0,
+    "initial_weight": 0.5,
     "checkpoint_dir": CHECKPOINT_PATH,
     "resume": None,
     "print_every": 1000,  #######################################
-    "save_every": 1000, #######################################
+    "save_every": 2000, #######################################
     "fluid_sampling_ratio": 0.01,
-    "interface_sampling_ratio": 0.1,
+    "interface_sampling_ratio": 0.05,
     "solid_sampling_ratio": 0.01,
     "left_sampling_ratio": 0.1,
     "right_sampling_ratio": 0.1,
