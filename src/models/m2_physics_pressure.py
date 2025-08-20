@@ -124,6 +124,7 @@ class PINNTrainer:
                 self.fluid_optimizer.zero_grad()
                 self.solid_optimizer.zero_grad()
 
+<<<<<<< HEAD
                 for domain_type in self.training_data.keys():
                     self.fluid_optimizer.zero_grad()
                     self.solid_optimizer.zero_grad()
@@ -241,6 +242,130 @@ class PINNTrainer:
                         losses_list["fluid_total"] += losses_list[domain_type]
                     if domain_type in ["interface", "solid"]:
                         losses_list["solid_total"] += losses_list[domain_type]
+=======
+                for domain_type, loader in data_loaders.items():
+                    if domain_type in self.loss_list:
+                        domain_batches = 0
+
+                        for batch_idx, (batch_tensor,) in enumerate(loader):
+                            # batch_tensor = batch_tensor.to(self.device)
+                            time = batch_tensor[:, 0:1]
+                            x = batch_tensor[:, 1:2]
+                            y = batch_tensor[:, 2:3]
+
+                            inputs = torch.cat([time, x, y], dim=1).squeeze(1)
+
+                            if domain_type in [
+                                # "solid",
+                                "fluid_points",
+                            ]:  # these are non-interface points
+                                fluid_outputs = self.fluid_model(inputs)
+
+                                loss = data_weight * torch.mean(
+                                    (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+                                losses_list[domain_type] += loss 
+
+                            elif domain_type == "solid":
+                                solid_outputs = self.solid_model(inputs)
+
+                                loss = data_weight * torch.mean(
+                                    # (solid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    # + (solid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    # ** 2
+                                    # + 
+                                    (solid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+                                losses_list["solid"] += loss 
+
+                            elif domain_type == "fluid":
+                                # NS loss using PDE residuals at non interface points (fluid points)
+                                [continuity, f_u, f_v] = navier_stokes_2D_IBM(
+                                    self.fluid_model, time, x, y
+                                )
+
+                                loss = physics_weight * torch.mean(
+                                    continuity**2 + f_u**2 + f_v**2
+                                )
+
+                                losses_list[domain_type] += loss
+
+                            elif domain_type == "interface":
+                                time.requires_grad_(True)
+                                x.requires_grad_(True)
+                                y.requires_grad_(True)
+
+                                fluid_outputs = self.fluid_model(
+                                    torch.cat([time, x, y], dim=1).squeeze(1)
+                                )
+                                solid_outputs = self.solid_model(
+                                    torch.cat([time, x, y], dim=1).squeeze(1)
+                                )
+                                p = solid_outputs[:, 2:3]
+                                n_x = batch_tensor[:, 8:9]
+                                n_y = batch_tensor[:, 9:10]
+                                p_x = torch.autograd.grad(p, x, grad_outputs=torch.ones_like(p), create_graph=True)[
+                                    0
+                                ]
+                                p_y = torch.autograd.grad(p, y, grad_outputs=torch.ones_like(p), create_graph=True)[
+                                    0
+                                ]
+                                p_normal = 0.01 * torch.mean((p_x * n_x + p_y * n_y)** 2)
+                                interface_loss1 = 0.01 * torch.mean(
+                                    (fluid_outputs[:, 0:1] - solid_outputs[:, 0:1]) ** 2
+                                    + (fluid_outputs[:, 1:2] - solid_outputs[:, 1:2])
+                                    ** 2
+                                    + (fluid_outputs[:, 2:3] - solid_outputs[:, 2:3])
+                                    ** 2
+                                )
+
+                                loss = interface_loss1
+
+                                losses_list["interface"] += loss + p_normal
+
+                            elif domain_type in ["left", "right", "up", "bottom"]:
+                                fluid_outputs = self.fluid_model(inputs)
+                                # left velcoties are nonzero, pressure in nonzero.
+                                # right, and pressure are nonzero.
+                                # bottom, pressure is zero, velocity is nonzero.
+                                # top, pressure is nonzero, velocity is nonzero.
+                                loss = boundary_weight * torch.mean(
+                                    (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    # + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    # ** 2
+                                )
+
+                                losses_list[domain_type] += loss
+
+                            elif domain_type == "initial":
+                                fluid_outputs = self.fluid_model(inputs)
+                                loss = initial_weight * torch.mean(
+                                    (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+
+                                losses_list[domain_type] += loss
+
+                            domain_batches += 1
+
+                        # Average the domain loss over batches
+                        if domain_batches > 0:
+                            losses_list[domain_type] /= domain_batches
+                            if domain_type != "solid":
+                                losses_list["fluid_total"] += losses_list[domain_type]
+                            if domain_type in ["interface", "solid"]:
+                                losses_list["solid_total"] += losses_list[domain_type]
+>>>>>>> 4392ba54da75ce17829c9595ca6ba19378fce06f
 
                 fluid_total_loss = losses_list["fluid_total"]
                 solid_total_loss = losses_list["solid_total"]

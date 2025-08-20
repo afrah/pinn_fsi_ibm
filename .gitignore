@@ -137,7 +137,8 @@ logs
 setting.md
 *.xlsx
 output/
-.err
+*.err
+*.out
 copy_models.ipynb
 f1_sh
 

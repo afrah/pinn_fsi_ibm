@@ -4,6 +4,7 @@ import scipy
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 
+
 from src.utils.utils import lp_error
 from src.utils.logger import Logging
 from src.utils.colors import model_color
@@ -13,7 +14,7 @@ from src.nn.bspline import KAN
 from src.utils.utils import clear_gpu_memory
 from src.data.IBM_data_loader import prepare_training_data, visualize_tensor_datasets
 from src.data.IBM_data_loader import load_fluid_testing_dataset
-from src.models.m1_physics import PINNTrainer
+from src.models.m2_physics_pressure import PINNTrainer
 from src.utils.plot_losses import plot_M1_loss_history
 from src.utils.fsi_visualization import (
     create_frames,
@@ -29,17 +30,17 @@ model_dirname = logger.get_output_dir()
 
 logger.print(model_dirname)
 
-
 clear_gpu_memory()
+
 config = {
     "dataset_type": "old",
     "training_selection_method": "Sobol",
     "input_dim": 3,  # (x, y, z, t)
-    "hidden_dim": 300,  #######################################
+    "hidden_dim": 3, #######################################
     "hidden_layers_dim": 3,
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
-    "num_epochs": 60000,  #######################################
+    "num_epochs": 10, #######################################
     "batch_size": 128,
     "learning_rate": 1e-3,
     "data_weight": 2.0,
@@ -47,10 +48,10 @@ config = {
     "boundary_weight": 2.0,
     "fsi_weight": 0.5,
     "initial_weight": 4.0,
-    "checkpoint_dir": CHECKPOINT_PATH,
+    "checkpoint_dir": "./checkpoints",
     "resume": None,
-    "print_every": 400,  #######################################
-    "save_every": 400, #######################################
+    "print_every": 3, #######################################
+    "save_every": 3, #######################################
     "fluid_sampling_ratio": 0.01,
     "interface_sampling_ratio": 0.07,
     "solid_sampling_ratio": 0.01,
@@ -61,7 +62,7 @@ config = {
     "initial_sampling_ratio": 0.1,
     "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     "solver": "mlp",
-    "model": "m1",
+    "model": "m2",
 }
 
 
@@ -98,11 +99,14 @@ fluid_network = (
 )
 if config["solver"] == "mlp":
     fluid_model = MLP(network=fluid_network)
+    solid_model = MLP(network=fluid_network)
 else:
     fluid_model = KAN(fluid_network)
+    solid_model = KAN(fluid_network)
 
 logger.print("Fluid model architecture:")
 logger.print(fluid_model)
+logger.print(solid_model)
 logger.print(
     f"Number of parameters: {sum(p.numel() for p in fluid_model.parameters())}"
 )
@@ -111,6 +115,7 @@ logger.print(
 
 trainer = PINNTrainer(
     fluid_model=fluid_model,
+    solid_model=solid_model,
     training_data=training_data,
     learning_rate=config["learning_rate"],
     logger=logger,
@@ -134,20 +139,24 @@ loss_history = trainer.train(
     initial_weight=config["initial_weight"],
 )
 
-config["device"] = "cpu"
+
 
 model_path = os.path.join(trainer.logger.get_output_dir(), "model.pth")
-model_state = torch.load(model_path , map_location=config["device"])
+model_state = torch.load(model_path)
 
 if model_state["solver"] == "mlp":
     fluid_model = MLP(model_state["fluid_network"]).to(config["device"])
+    solid_model = MLP(model_state["fluid_network"]).to(config["device"])
 else:
     fluid_model = KAN(model_state["fluid_network"]).to(config["device"])
+    solid_model = KAN(model_state["fluid_network"]).to(config["device"])
 
 
 fluid_model.load_state_dict(model_state["fluid_model_state_dict"])
+solid_model.load_state_dict(model_state["fluid_model_state_dict"])
 
 fluid_model.eval()
+solid_model.eval()
 
 logger.print(
     f"Number of parameters: {sum(p.numel() for p in fluid_model.parameters())}"
@@ -213,7 +222,7 @@ solid = Fluid_data["Solid_points"]
 
 with torch.no_grad():
     outputs_interface_m1 = np.array(
-        fluid_model(
+        solid_model(
             torch.cat(
                 [
                     torch.tensor(interface[:, 0:1], dtype=torch.float32),
@@ -470,6 +479,11 @@ plotter.draw_contourf_regular_2D(
     ticks=ticks,
 )
 
+
+
+
+
+# Usage example:
 analyzer = CavityFlowAnalyzer(logger, config["device"])
 data_path = "./data/IB_PINN3.mat"
 analyzer.load_data(data_path, tstep=101, xstep=102, ystep=102, skip=1)
@@ -513,11 +527,9 @@ analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="error")
 
 
-
-
 with torch.no_grad():
     outputs_solid_m1 = np.array(
-        fluid_model(
+        solid_model(
             torch.cat(
                 [
                     torch.tensor(solid[:, 0:1], dtype=torch.float32),

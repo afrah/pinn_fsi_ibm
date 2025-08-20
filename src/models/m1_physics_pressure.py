@@ -106,6 +106,7 @@ class PINNTrainer:
             for epoch in range(num_epochs):
                 epoch_losses = {key: 0.0 for key in self.loss_list}
 
+<<<<<<< HEAD
                 for domain_type in self.training_data.keys():
                     self.fluid_optimizer.zero_grad()
                     # domain_batches = 0
@@ -218,6 +219,130 @@ class PINNTrainer:
                     epoch_losses["total"] += epoch_losses[domain_type]
 
                 total_loss = epoch_losses["total"]
+=======
+                self.fluid_optimizer.zero_grad()
+
+                for domain_type, loader in data_loaders.items():
+                    if domain_type in self.loss_list:
+                        domain_batches = 0
+
+                        for batch_idx, (batch_tensor,) in enumerate(loader):
+                            # batch_tensor = batch_tensor.to(self.device)
+                            time = batch_tensor[:, 0:1]
+                            x = batch_tensor[:, 1:2]
+                            y = batch_tensor[:, 2:3]
+
+                            inputs = torch.cat([time, x, y], dim=1).squeeze(1)
+
+                            if domain_type =="fluid_points":  # these are non-interface points
+                                fluid_outputs = self.fluid_model(inputs)
+
+                                loss = data_weight * torch.mean(
+                                    (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+                                epoch_losses[domain_type] += loss 
+
+
+                            elif domain_type =="solid":  # these are non-interface points
+                                fluid_outputs = self.fluid_model(inputs)
+
+                                loss = data_weight * torch.mean(
+                                    # (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    # + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    # ** 2
+                                    # + 
+                                    (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+                                epoch_losses[domain_type] += loss 
+                                
+                            elif domain_type == "fluid":
+                                # NS loss using PDE residuals at non interface points (fluid points)
+                                [continuity, f_u, f_v] = navier_stokes_2D_IBM(
+                                    self.fluid_model, time, x, y
+                                )
+
+                                loss = physics_weight * torch.mean(
+                                    continuity**2 + f_u**2 + f_v**2
+                                )
+
+                                epoch_losses[domain_type] += loss
+
+                            elif domain_type == "interface":
+                                time.requires_grad_(True)
+                                x.requires_grad_(True)
+                                y.requires_grad_(True)
+
+                                fluid_outputs = self.fluid_model(
+                                    torch.cat([time, x, y], dim=1).squeeze(1)
+                                )
+                                p = fluid_outputs[:, 2]
+                                n_x = batch_tensor[:, 8]
+                                n_y = batch_tensor[:, 9]
+                                p_x = torch.autograd.grad(p, x, grad_outputs=torch.ones_like(p), create_graph=True)[
+                                    0
+                                ]
+                                p_y = torch.autograd.grad(p, y, grad_outputs=torch.ones_like(p), create_graph=True)[
+                                    0
+                                ]
+                                p_normal = physics_weight * torch.mean((p_x * n_x + p_y * n_y)** 2)
+                                # Calculate interface data loss
+                                interface_loss = data_weight * torch.mean(
+                                    (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+
+                                loss = interface_loss  + 0.01 * p_normal# solid_loss +  #+ fsi_loss
+
+                                epoch_losses[domain_type] += loss
+
+                            elif domain_type in ["left", "right", "up", "bottom"]:
+                                fluid_outputs = self.fluid_model(inputs)
+                                # left velcoties are nonzero, pressure in nonzero.
+                                # right, and pressure are nonzero.
+                                # bottom, pressure is zero, velocity is nonzero.
+                                # top, pressure is nonzero, velocity is nonzero.
+                                loss = boundary_weight * torch.mean(
+                                    (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    # + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    # ** 2
+                                )
+
+                                epoch_losses[domain_type] += loss
+
+                            elif domain_type == "initial":
+                                fluid_outputs = self.fluid_model(inputs)
+                                loss = initial_weight * torch.mean(
+                                    (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                                    + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                                    ** 2
+                                    + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    ** 2
+                                )
+
+                                epoch_losses[domain_type] += loss
+
+                            domain_batches += 1
+
+                        # Average the domain loss over batches
+                        if domain_batches > 0:
+                            epoch_losses[domain_type] /= domain_batches
+                            epoch_losses["total"] += epoch_losses[domain_type]
+                            # if domain_type == 'interface':
+                            #     solid_loss /= domain_batches
+
+                total_loss = epoch_losses["total"]
+
+>>>>>>> 4392ba54da75ce17829c9595ca6ba19378fce06f
                 total_loss.backward()
                 self.fluid_optimizer.step()
                 self.fluid_scheduler.step(total_loss)

@@ -226,9 +226,9 @@ with torch.no_grad():
         solid_model(
             torch.cat(
                 [
-                    torch.tensor(solid[:, 0:1], dtype=torch.float32),
-                    torch.tensor(solid[:, 1:2], dtype=torch.float32),
-                    torch.tensor(solid[:, 2:3], dtype=torch.float32),
+                    torch.tensor(interface[:, 0:1], dtype=torch.float32),
+                    torch.tensor(interface[:, 1:2], dtype=torch.float32),
+                    torch.tensor(interface[:, 2:3], dtype=torch.float32),
                 ],
                 dim=1,
             ).squeeze(1)
@@ -244,7 +244,7 @@ logger.print(f"On the interface")
 
 rel_u_l2_error = (
     np.sqrt(
-        np.mean((u_pred_interface_m1 - np.array(solid[:, 3:4])) ** 2)
+        np.mean((u_pred_interface_m1 - np.array(interface[:, 3:4])) ** 2)
         / np.mean(np.array(interface[:, 3:4]) ** 2)
     )
     * 100
@@ -252,7 +252,7 @@ rel_u_l2_error = (
 
 rel_v_l2_error = (
     np.sqrt(
-        np.mean((v_pred_interface_m1 - np.array(solid[:, 4:5])) ** 2)
+        np.mean((v_pred_interface_m1 - np.array(interface[:, 4:5])) ** 2)
         / np.mean(np.array(interface[:, 4:5]) ** 2)
     )
     * 100
@@ -260,7 +260,7 @@ rel_v_l2_error = (
 
 rel_p_l2_error = (
     np.sqrt(
-        np.mean((p_pred_interface_m1 - np.array(solid[:, 5:6])) ** 2)
+        np.mean((p_pred_interface_m1 - np.array(interface[:, 5:6])) ** 2)
         / np.mean(np.array(interface[:, 5:6]) ** 2)
     )
     * 100
@@ -527,7 +527,7 @@ analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution
 
 with torch.no_grad():
     outputs_solid_m1 = np.array(
-        fluid_model(
+        solid_model(
             torch.cat(
                 [
                     torch.tensor(solid[:, 0:1], dtype=torch.float32),
