@@ -194,18 +194,17 @@ class PINNTrainer:
                         p_y = torch.autograd.grad(p, y, grad_outputs=torch.ones_like(p), create_graph=True)[
                             0
                         ]
-                        p_normal =  torch.mean((p_x * n_x + p_y * n_y)** 2)
-                        interface_loss1 = torch.mean(
+                        loss = physics_weight * torch.mean((p_x * n_x + p_y * n_y)** 2)
+                        loss += physics_weight * torch.mean(
                             (fluid_outputs[:, 0:1] - solid_outputs[:, 0:1]) ** 2
                             + (fluid_outputs[:, 1:2] - solid_outputs[:, 1:2])
                             ** 2
-                            + (fluid_outputs[:, 2:3] - solid_outputs[:, 2:3])
-                            ** 2
                         )
+                        loss += data_weight * torch.mean((batch_tensor[:, 3:4] - solid_outputs[:, 2:3])
+                            ** 2)
 
-                        loss = physics_weight *  interface_loss1
 
-                        losses_list["interface"] = physics_weight *  interface_loss1 + physics_weight *  p_normal
+                        losses_list["interface"] = loss
 
                     elif domain_type in ["left", "right", "up", "bottom"]:
                         fluid_outputs = self.fluid_model(inputs)
@@ -217,8 +216,8 @@ class PINNTrainer:
                             (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
                             + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
                             ** 2
-                            + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
-                            ** 2
+                            # + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                            # ** 2
                         )
 
                         losses_list[domain_type] = loss

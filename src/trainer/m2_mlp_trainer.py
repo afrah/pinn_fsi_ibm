@@ -36,12 +36,12 @@ config = {
     "dataset_type": "old",
     "training_selection_method": "Sobol",
     "input_dim": 3,  # (x, y, z, t)
-    "hidden_dim": 300,  #######################################
+    "hidden_dim": 400,  #######################################
     "hidden_layers_dim": 3,
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
     "num_epochs": 60000,  #######################################
-    "batch_size": 128,
+    "batch_size": 256,
     "learning_rate": 1e-3,
     "data_weight": 2.0,
     "physics_weight": 0.005,
@@ -97,12 +97,15 @@ visualize_tensor_datasets(training_data, save_dir=training_data_path)
 fluid_network = (
     [config["input_dim"]] + [config["hidden_dim"]] * config["hidden_layers_dim"] + [3]
 )
+solid_network = (
+    [config["input_dim"]] + [50] * config["hidden_layers_dim"] + [3]
+)
 if config["solver"] == "mlp":
     fluid_model = MLP(network=fluid_network)
-    solid_model = MLP(network=fluid_network)
+    solid_model = MLP(network=solid_network)
 else:
     fluid_model = KAN(fluid_network)
-    solid_model = KAN(fluid_network)
+    solid_model = KAN(solid_network)
 
 logger.print("Fluid model architecture:")
 logger.print(fluid_model)
@@ -147,14 +150,14 @@ model_state = torch.load(model_path , map_location=config["device"])
 
 if model_state["solver"] == "mlp":
     fluid_model = MLP(model_state["fluid_network"]).to(config["device"])
-    solid_model = MLP(model_state["fluid_network"]).to(config["device"])
+    solid_model = MLP(model_state["solid_network"]).to(config["device"])
 else:
     fluid_model = KAN(model_state["fluid_network"]).to(config["device"])
-    solid_model = KAN(model_state["fluid_network"]).to(config["device"])
+    solid_model = KAN(model_state["solid_network"]).to(config["device"])
 
 
 fluid_model.load_state_dict(model_state["fluid_model_state_dict"])
-solid_model.load_state_dict(model_state["fluid_model_state_dict"])
+solid_model.load_state_dict(model_state["solid_model_state_dict"])
 
 fluid_model.eval()
 solid_model.eval()

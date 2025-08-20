@@ -36,12 +36,12 @@ config = {
     "dataset_type": "old",
     "training_selection_method": "Sobol",
     "input_dim": 3,  # (x, y, z, t)
-    "hidden_dim": 300,  #######################################
+    "hidden_dim": 400,  #######################################
     "hidden_layers_dim": 3,
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
     "num_epochs": 60000,  #######################################
-    "batch_size": 128,
+    "batch_size": 256,
     "learning_rate": 1e-3,
     "data_weight": 2.0,
     "physics_weight": 0.005,

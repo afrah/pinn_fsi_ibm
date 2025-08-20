@@ -216,8 +216,8 @@ class PINNTrainer:
                                     (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
                                     + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
                                     ** 2
-                                    + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
-                                    ** 2
+                                    # + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                                    # ** 2
                                 )
 
                                 losses_list[domain_type] += loss

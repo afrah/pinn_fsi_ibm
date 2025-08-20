@@ -163,11 +163,12 @@ class PINNTrainer:
                         ]
                         
                         p_normal = physics_weight * torch.mean((p_x * n_x + p_y * n_y)** 2)
-                        interface_loss = physics_weight * torch.mean(
-                            (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
-                            + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
-                            ** 2
-                            + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                        interface_loss = data_weight * torch.mean(
+                            # (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                            # + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                            # ** 2
+                            # +
+                            (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
                             ** 2
                         )
 
