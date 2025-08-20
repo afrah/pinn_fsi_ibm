@@ -40,8 +40,8 @@ config = {
     "hidden_layers_dim": 3,
     "fluid_density": 1.0,
     "fluid_viscosity": 0.01,
-    "num_epochs": 60000,  #######################################
-    "batch_size": 128,
+    "num_epochs": 70000,  #######################################
+    "batch_size": 256,
     "learning_rate": 1e-3,
     "data_weight": 2.0,
     "physics_weight": 0.01,
@@ -50,8 +50,8 @@ config = {
     "initial_weight": 4.0,
     "checkpoint_dir": CHECKPOINT_PATH,
     "resume": None,
-    "print_every": 400,  #######################################
-    "save_every": 400, #######################################
+    "print_every": 2000,  #######################################
+    "save_every": 4000, #######################################
     "fluid_sampling_ratio": 0.01,
     "interface_sampling_ratio": 0.07,
     "solid_sampling_ratio": 0.01,
@@ -60,7 +60,7 @@ config = {
     "bottom_sampling_ratio": 0.1,
     "top_sampling_ratio": 0.15,
     "initial_sampling_ratio": 0.1,
-    "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    "device": "cpu",#torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     "solver": "kan",
     "model": "m2",
 }
@@ -140,9 +140,10 @@ loss_history = trainer.train(
 )
 
 
+config["device"] = "cpu"
 
 model_path = os.path.join(trainer.logger.get_output_dir(), "model.pth")
-model_state = torch.load(model_path)
+model_state = torch.load(model_path , map_location=config["device"])
 
 if model_state["solver"] == "mlp":
     fluid_model = MLP(model_state["fluid_network"]).to(config["device"])
@@ -520,4 +521,58 @@ analyzer.plot_time_series_for_variable("v", time_steps, transpose=True, solution
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="exact")
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="pred")
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="error")
+
+
+
+
+with torch.no_grad():
+    outputs_solid_m1 = np.array(
+        fluid_model(
+            torch.cat(
+                [
+                    torch.tensor(solid[:, 0:1], dtype=torch.float32),
+                    torch.tensor(solid[:, 1:2], dtype=torch.float32),
+                    torch.tensor(solid[:, 2:3], dtype=torch.float32),
+                ],
+                dim=1,
+            ).squeeze(1)
+        ).detach().numpy()
+    )
+
+u_pred_solid_m1 = outputs_solid_m1[:, 0:1]
+v_pred_solid_m1 = outputs_solid_m1[:, 1:2]
+p_pred_solid_m1 = outputs_solid_m1[:, 2:3]
+
+
+logger.print(f"On the Solid")
+
+rel_u_l2_error = (
+    np.sqrt(
+        np.mean((u_pred_solid_m1 - np.array(solid[:, 3:4])) ** 2)
+        / np.mean(np.array(solid[:, 3:4]) ** 2)
+    )
+    * 100
+)
+
+rel_v_l2_error = (
+    np.sqrt(
+        np.mean((v_pred_solid_m1 - np.array(solid[:, 4:5])) ** 2)
+        / np.mean(np.array(solid[:, 4:5]) ** 2)
+    )
+    * 100
+)
+
+rel_p_l2_error = (
+    np.sqrt(
+        np.mean((p_pred_solid_m1 - np.array(solid[:, 5:6])) ** 2)
+        / np.mean(np.array(solid[:, 5:6]) ** 2)
+    )
+    * 100
+)
+
+
+logger.print(f"Relative L2 error for u: {rel_u_l2_error:.2e} %")
+logger.print(f"Relative L2 error for v: {rel_v_l2_error:.2e} %")
+logger.print(f"Relative L2 error for p: {rel_p_l2_error:.2e} %")
+
 

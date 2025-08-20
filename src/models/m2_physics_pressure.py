@@ -129,7 +129,6 @@ class PINNTrainer:
                     self.solid_optimizer.zero_grad()
                     batch_tensor, = next(iter(data_loaders[domain_type]))
 
-                    
                     time = batch_tensor[:, 0:1]
                     x = batch_tensor[:, 1:2]
                     y = batch_tensor[:, 2:3]
@@ -153,11 +152,13 @@ class PINNTrainer:
 
                     elif domain_type == "solid":
                         solid_outputs = self.solid_model(inputs)
+
                         loss = data_weight * torch.mean(
-                            (solid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
-                            + (solid_outputs[:, 1:2] - batch_tensor[:, 4:5])
-                            ** 2
-                            + (solid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                            # (solid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
+                            # + (solid_outputs[:, 1:2] - batch_tensor[:, 4:5])
+                            # ** 2
+                            # + 
+                            (solid_outputs[:, 2:3] - batch_tensor[:, 5:6])
                             ** 2
                         )
                         losses_list["solid"] = loss 
@@ -217,8 +218,8 @@ class PINNTrainer:
                             (fluid_outputs[:, 0:1] - batch_tensor[:, 3:4]) ** 2
                             + (fluid_outputs[:, 1:2] - batch_tensor[:, 4:5])
                             ** 2
-                            + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
-                            ** 2
+                            # + (fluid_outputs[:, 2:3] - batch_tensor[:, 5:6])
+                            # ** 2
                         )
 
                         losses_list[domain_type] = loss
@@ -268,7 +269,6 @@ class PINNTrainer:
                         f"Epoch {epoch}/{num_epochs}, "
                         f"Total: {losses_list['fluid_total'].item():.1e}, "
                         f"Data(F): {sum(losses_list[b].item() for b in [ 'fluid_points']):.1e}, "
-                        f"Data(S): {sum(losses_list[b].item() for b in [ 'solid']):.1e}, "
                         f"Physics: {losses_list['fluid'].item():.1e}, "
                         f"Boundary: {sum(losses_list[b].item() for b in ['left', 'right', 'up', 'bottom']):.1e}, "
                         f"FSI: {losses_list['interface'].item():.1e}, "

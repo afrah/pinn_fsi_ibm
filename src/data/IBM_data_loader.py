@@ -328,31 +328,18 @@ def load_training_dataset(
     dataset_path="./data/training_dataset",
     device="cuda" if torch.cuda.is_available() else "cpu",
 ):
-    """
-    Load pre-saved training dataset tensors from a specified path.
-
-    Args:
-        dataset_path (str): Path to the directory containing saved tensor files
-        device (str): Device to load tensors to (cuda or cpu)
-
-    Returns:
-        dict: A dictionary of loaded tensor data with keys matching the saved tensor files
-    """
-    # Ensure the path exists
+ 
     if not os.path.exists(dataset_path):
         raise FileNotFoundError(f"Dataset path {dataset_path} does not exist.")
 
-    # List all .pt files in the directory
     tensor_files = [f for f in os.listdir(dataset_path) if f.endswith("_tensor.pt")]
 
-    # Load tensors
     tensor_data = {}
     for file in tensor_files:
         key = file.replace("_tensor.pt", "")  # Extract key from filename
         tensor_path = os.path.join(dataset_path, file)
 
         try:
-            # Load tensor and move to specified device
             tensor = torch.load(tensor_path, map_location=device)
             tensor_data[key] = tensor
             print(f"Loaded {key} tensor from {tensor_path} with shape {tensor.shape}")
@@ -360,7 +347,6 @@ def load_training_dataset(
             print(f"Error loading {file}: {e}")
             return None
 
-    # Verify that tensors were loaded
     if not tensor_data:
         print(f"No tensor files found in {dataset_path}")
         return None
@@ -370,23 +356,10 @@ def load_training_dataset(
 
 
 def visualize_tensor_datasets(tensor_data, save_dir=None):
-    """
-    Create scatter plots for different tensor datasets at a specific time step.
-    Combines fluid, initial, top, left, right, bottom, and up into one figure,
-    leaves interface and solid as separate plots.
-
-    Args:
-        tensor_data (dict): Dictionary of tensor datasets
-        save_dir (str, optional): Directory to save the plots
-    """
-
-    # Create a figure with subplots - now we only need 3 plots
+ 
     plt.figure(figsize=(15, 5))
-
-    # First plot: Combined datasets with different colors
     plt.subplot(1, 3, 1)
 
-    # List of datasets to combine
     combine_keys = ["fluid", "initial", "left", "right", "bottom", "up"]
     colors = ["blue", "green", "red", "black", "orange", "cyan"]
     markers = ["*", "+", "o", "x", "D", "^"]
@@ -395,14 +368,12 @@ def visualize_tensor_datasets(tensor_data, save_dir=None):
             data = tensor_data[key]
             x_data = data[:, 0].cpu().numpy()
 
-            # Use y-coordinate for most datasets
             y_data = (
                 data[:, 1].cpu().numpy()
                 if key not in ["bottom", "up"]
                 else data[:, 2].cpu().numpy()
             )
 
-            # Plot with a different color and add to legend
             plt.scatter(
                 x_data,
                 y_data,
@@ -418,7 +389,6 @@ def visualize_tensor_datasets(tensor_data, save_dir=None):
     plt.ylabel(r"$y→$")
     plt.legend()
 
-    # Second plot: Interface (unchanged)
     plt.subplot(1, 3, 2)
     if "interface" in tensor_data:
         data = tensor_data["interface"]
@@ -433,7 +403,6 @@ def visualize_tensor_datasets(tensor_data, save_dir=None):
         )
         plt.title("Interface")
 
-    # Third plot: Solid (unchanged)
     plt.subplot(1, 3, 3)
     if "solid" in tensor_data:
         data = tensor_data["solid"]
@@ -451,11 +420,9 @@ def visualize_tensor_datasets(tensor_data, save_dir=None):
     plt.tight_layout()
 
     if save_dir is None:
-        # Create save directory if it doesn't exist
         save_dir = "./data/training_dataset/plots"
         os.makedirs(save_dir, exist_ok=True)
 
-    # Save the plot
     plot_path = os.path.join(save_dir, f"tensor_datasets_scatter.png")
     plt.savefig(plot_path, dpi=300)
     print(f"Saved tensor datasets scatter plot to {plot_path}")

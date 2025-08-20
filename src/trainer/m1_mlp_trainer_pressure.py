@@ -13,7 +13,7 @@ from src.nn.bspline import KAN
 from src.utils.utils import clear_gpu_memory
 from src.data.IBM_data_loader import prepare_training_data, visualize_tensor_datasets
 from src.data.IBM_data_loader import load_fluid_testing_dataset
-from src.models.m1_physics import PINNTrainer
+from src.models.m1_physics_pressure import PINNTrainer
 from src.utils.plot_losses import plot_M1_loss_history
 from src.utils.fsi_visualization import (
     create_frames,
@@ -28,6 +28,7 @@ logger = Logging(CHECKPOINT_PATH)
 model_dirname = logger.get_output_dir()
 
 logger.print(model_dirname)
+
 
 
 clear_gpu_memory()
@@ -49,8 +50,8 @@ config = {
     "initial_weight": 4.0,
     "checkpoint_dir": CHECKPOINT_PATH,
     "resume": None,
-    "print_every": 400,  #######################################
-    "save_every": 400, #######################################
+    "print_every": 1000,  #######################################
+    "save_every": 2000, #######################################
     "fluid_sampling_ratio": 0.01,
     "interface_sampling_ratio": 0.07,
     "solid_sampling_ratio": 0.01,
@@ -134,8 +135,8 @@ loss_history = trainer.train(
     initial_weight=config["initial_weight"],
 )
 
-config["device"] = "cpu"
 
+config["device"] = "cpu"
 model_path = os.path.join(trainer.logger.get_output_dir(), "model.pth")
 model_state = torch.load(model_path , map_location=config["device"])
 
@@ -216,9 +217,9 @@ with torch.no_grad():
         fluid_model(
             torch.cat(
                 [
-                    torch.tensor(solid[:, 0:1], dtype=torch.float32),
-                    torch.tensor(solid[:, 1:2], dtype=torch.float32),
-                    torch.tensor(solid[:, 2:3], dtype=torch.float32),
+                    torch.tensor(interface[:, 0:1], dtype=torch.float32),
+                    torch.tensor(interface[:, 1:2], dtype=torch.float32),
+                    torch.tensor(interface[:, 2:3], dtype=torch.float32),
                 ],
                 dim=1,
             ).squeeze(1)
@@ -234,7 +235,7 @@ logger.print(f"On the interface")
 
 rel_u_l2_error = (
     np.sqrt(
-        np.mean((u_pred_interface_m1 - np.array(solid[:, 3:4])) ** 2)
+        np.mean((u_pred_interface_m1 - np.array(interface[:, 3:4])) ** 2)
         / np.mean(np.array(interface[:, 3:4]) ** 2)
     )
     * 100
@@ -242,7 +243,7 @@ rel_u_l2_error = (
 
 rel_v_l2_error = (
     np.sqrt(
-        np.mean((v_pred_interface_m1 - np.array(solid[:, 4:5])) ** 2)
+        np.mean((v_pred_interface_m1 - np.array(interface[:, 4:5])) ** 2)
         / np.mean(np.array(interface[:, 4:5]) ** 2)
     )
     * 100
@@ -250,7 +251,7 @@ rel_v_l2_error = (
 
 rel_p_l2_error = (
     np.sqrt(
-        np.mean((p_pred_interface_m1 - np.array(solid[:, 5:6])) ** 2)
+        np.mean((p_pred_interface_m1 - np.array(interface[:, 5:6])) ** 2)
         / np.mean(np.array(interface[:, 5:6]) ** 2)
     )
     * 100
@@ -513,8 +514,6 @@ analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution
 analyzer.plot_time_series_for_variable("p", time_steps, transpose=True, solution_type="error")
 
 
-
-
 with torch.no_grad():
     outputs_solid_m1 = np.array(
         fluid_model(
@@ -559,7 +558,6 @@ rel_p_l2_error = (
     )
     * 100
 )
-
 
 logger.print(f"Relative L2 error for u: {rel_u_l2_error:.2e} %")
 logger.print(f"Relative L2 error for v: {rel_v_l2_error:.2e} %")
